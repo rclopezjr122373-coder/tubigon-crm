@@ -244,6 +244,37 @@ async function updateSupport(id,newSupport){
   render();
 }
 
+async function saveVoterEdits(id){
+  const fn  = document.getElementById('ed-fn')?.value.trim();
+  const ln  = document.getElementById('ed-ln')?.value.trim();
+  const mn  = document.getElementById('ed-mn')?.value.trim();
+  const bday= document.getElementById('ed-bday')?.value;
+  const gen = document.getElementById('ed-gen')?.value;
+  const occ = document.getElementById('ed-occ')?.value;
+  const con = document.getElementById('ed-con')?.value.trim();
+  if(!fn||!ln){ S.error='First and last name are required.'; render(); return; }
+  const age  = bday?calcAge(bday):null;
+  const ag   = ageGroup(age);
+  try{
+    await db.collection('voters').doc(id).update({
+      firstName:fn, lastName:ln, middleName:mn||'',
+      birthday:bday||'', age:age, ageGroup:ag,
+      gender:gen, occupation:occ, contact:con||'',
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy:S.user.uid,
+    });
+    // Update local modal data
+    if(S.modal?.data?.id===id){
+      Object.assign(S.modal.data,{firstName:fn,lastName:ln,middleName:mn||'',
+        birthday:bday||'',age,ageGroup:ag,gender:gen,occupation:occ,contact:con||''});
+      S.modal.editMode=false;
+    }
+    S.success='Record updated ✓'; S.error='';
+    render();
+    setTimeout(()=>{S.success='';render();},2500);
+  }catch(e){ S.error='Save failed: '+e.message; render(); }
+}
+
 async function saveNotes(id,notes){
   if(isCoord()){
     const v=S.voters.find(x=>x.id===id);
@@ -548,9 +579,9 @@ function renderVoters(){
   <div class="tab-content">
     ${isCoord()?`<div style="margin-bottom:10px;"><span class="coord-tag">📍 ${coordBrgy()} — your barangay only</span></div>`:''}
     <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <input value="${S.search}" placeholder="🔍  Search name, notes, occupation..."
+      <input id="voter-search" value="${S.search}" placeholder="🔍  Search name, notes, occupation..."
         style="flex:1;padding:11px 14px;border-radius:12px;border:2px solid ${C.border};font-size:13px;outline:none;background:#fff;font-family:'Outfit',sans-serif;"
-        oninput="S.search=this.value;render()"/>
+        oninput="doSearch(this.value)"/>
       <button onclick="S.filterOpen=!S.filterOpen;render()" style="padding:11px 13px;border-radius:12px;border:2px solid ${S.filterOpen||hf?C.navy:C.border};background:${S.filterOpen||hf?C.navy:'#fff'};color:${S.filterOpen||hf?'#fff':C.muted};font-size:18px;cursor:pointer;">⚙️</button>
       ${canWrite()?`<button onclick="openAddVoter()" style="padding:11px 14px;border-radius:12px;border:none;background:linear-gradient(135deg,${C.gold},#f5c842);color:${C.navy};font-size:18px;cursor:pointer;font-weight:800;">＋</button>`:''}
     </div>
@@ -570,6 +601,7 @@ function renderVoters(){
       ${hf?`<button onclick="S.filters={gender:'',ageGroup:'',occupation:'',barangay:''};resubVoters();" style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid ${C.border};background:transparent;color:${C.danger};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✕ Clear Filters</button>`:''}
     </div>`:''}
 
+    <div id="voter-list">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <div style="font-size:12px;color:${C.muted};"><strong style="color:${C.navy};">${voters.length}</strong> voters ${S.search?'found':'loaded'}</div>
       <div style="font-size:11px;color:${C.muted};">${voters.length===80?'Showing first 80':''}</div>
@@ -601,7 +633,41 @@ function renderVoters(){
       <div style="font-size:15px;font-weight:600;color:${C.text};">No voters yet</div>
       <div style="font-size:12px;margin-top:6px;">${canWrite()?'Tap ＋ to add the first voter record.':'Ask your coordinator to add records.'}</div>
     </div>`:''}
+    </div>
   </div>`;
+}
+
+function renderVoterList(voters){
+  return \`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="font-size:12px;color:#64748b;"><strong style="color:#0f2d5e;">\${voters.length}</strong> voters \${S.search?'found':'loaded'}</div>
+      <div style="font-size:11px;color:#64748b;">\${voters.length===80?'Showing first 80':''}</div>
+    </div>
+    \${voters.map(v=>{
+      const sclr=SC[v.support]||'#64748b';
+      const age=v.birthday?calcAge(v.birthday):v.age;
+      const hasNotes=!!(v.notes&&v.notes.trim());
+      return \`
+      <div class="voter-card" onclick="openVoterDetail('\${v.id}')" style="border-left:4px solid \${sclr};">
+        <div style="width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,#0f2d5e20,#0a6b6b20);display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;">\${v.gender==='Female'?'👩':'👨'}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:14px;color:#0d1b2e;">\${v.firstName} \${v.lastName}</div>
+          <div style="font-size:11px;color:#64748b;margin-bottom:4px;">\${v.barangay} · \${v.occupation}</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
+            <span class="badge" style="background:\${v.gender==='Female'?'#e879a822':'#3b82f622'};color:\${v.gender==='Female'?'#e879a8':'#3b82f6'};">\${v.gender}</span>
+            <span class="badge" style="background:#6366f122;color:#6366f1;">\${ageGroup(age)} · \${age||'?'}y</span>
+            \${hasNotes?'<span style="font-size:10px;color:#64748b;">📝</span>':''}
+          </div>
+        </div>
+        <span class="badge" style="background:\${sclr}22;color:\${sclr};">\${v.support}</span>
+      </div>\`;
+    }).join('')}
+    \${voters.length===0?\`
+    <div style="text-align:center;padding:50px 20px;color:#64748b;">
+      <div style="font-size:44px;margin-bottom:14px;">👥</div>
+      <div style="font-size:15px;font-weight:600;color:#0d1b2e;">No voters found</div>
+    </div>\`:''}
+  \`;
 }
 
 /* ════════════════════════════════════════════════════
@@ -877,24 +943,78 @@ function renderModal(){
 function renderVoterModal(){
   const v=S.modal.data;
   const sclr=SC[v.support]||C.muted;
-  const role=S.profile?.role;
   const age=v.birthday?calcAge(v.birthday):v.age;
   const ag=ageGroup(age);
-  // Coordinator can write only if it's their barangay
   const canEdit=isAdmin()||(isCoord()&&v.barangay===coordBrgy());
+  const editMode=S.modal.editMode||false;
   const inp=`padding:11px 13px;border-radius:10px;border:2px solid ${C.border};font-size:13px;outline:none;font-family:'Outfit',sans-serif;width:100%;box-sizing:border-box;`;
+  const lbl=`font-size:10px;color:${C.muted};margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;display:block;margin-top:10px;`;
+
   return `
   <div class="modal-overlay" onclick="if(event.target===this){S.modal=null;render();}">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
+
+      <!-- HEADER -->
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
-        <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,${C.navy}22,${C.teal}22);display:flex;align-items:center;justify-content:center;font-size:30px;">${v.gender==='Female'?'👩':'👨'}</div>
-        <div>
-          <div style="font-size:19px;font-weight:800;color:${C.text};">${v.firstName} ${v.lastName}</div>
-          <div style="font-size:11px;color:${C.muted};">ID: ${v.id?.slice(0,8).toUpperCase()}</div>
+        <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,${C.navy}22,${C.teal}22);display:flex;align-items:center;justify-content:center;font-size:28px;">${v.gender==='Female'?'👩':'👨'}</div>
+        <div style="flex:1;">
+          <div style="font-size:18px;font-weight:800;color:${C.text};">${v.firstName} ${v.middleName?v.middleName+' ':''} ${v.lastName}</div>
+          <div style="font-size:11px;color:${C.muted};">Precinct: ${v.precinct||'—'} · ID: ${v.id?.slice(0,8).toUpperCase()}</div>
         </div>
+        ${canEdit?`<button onclick="S.modal.editMode=!S.modal.editMode;render()" style="padding:7px 14px;border-radius:20px;border:2px solid ${editMode?C.navy:C.border};background:${editMode?C.navy:'transparent'};color:${editMode?'#fff':C.muted};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">${editMode?'✕ Cancel':'✏️ Edit'}</button>`:''}
       </div>
 
+      ${editMode&&canEdit?`
+      <!-- EDIT MODE -->
+      <div style="background:${C.gold}10;border:1px solid ${C.gold}40;border-radius:12px;padding:14px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;color:${C.navy};margin-bottom:12px;">✏️ Edit Voter Record</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <label style="${lbl}">First Name</label>
+            <input id="ed-fn" style="${inp}" value="${v.firstName||''}"/>
+          </div>
+          <div>
+            <label style="${lbl}">Last Name</label>
+            <input id="ed-ln" style="${inp}" value="${v.lastName||''}"/>
+          </div>
+        </div>
+        <label style="${lbl}">Middle Name</label>
+        <input id="ed-mn" style="${inp}" value="${v.middleName||''}"/>
+
+        <label style="${lbl}">🎂 Birthday</label>
+        <input id="ed-bday" type="date" style="${inp}" value="${v.birthday||''}"
+          onchange="const a=calcAge(this.value);document.getElementById('ed-age-prev').textContent=a?'→ '+a+' years old · '+ageGroup(a):''"/>
+        <div id="ed-age-prev" style="font-size:11px;color:${C.teal};margin-top:3px;min-height:16px;">${v.birthday?'→ '+age+' years old · '+ag:''}</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <label style="${lbl}">Gender</label>
+            <select id="ed-gen" style="${inp}">
+              <option ${v.gender==='Male'?'selected':''}>Male</option>
+              <option ${v.gender==='Female'?'selected':''}>Female</option>
+            </select>
+          </div>
+          <div>
+            <label style="${lbl}">Occupation</label>
+            <select id="ed-occ" style="${inp}">
+              ${OCCUPATIONS.map(o=>`<option ${v.occupation===o?'selected':''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <label style="${lbl}">📱 Contact</label>
+        <input id="ed-con" type="tel" style="${inp}" value="${v.contact||''}" placeholder="09XXXXXXXXX"/>
+
+        <button onclick="saveVoterEdits('${v.id}')" style="margin-top:14px;width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,${C.gold},#f5c842);color:${C.navy};font-size:14px;font-weight:800;cursor:pointer;font-family:'Outfit',sans-serif;">
+          Save Changes ✓
+        </button>
+        ${S.success?`<div style="color:${C.success};font-size:12px;text-align:center;margin-top:8px;">${S.success}</div>`:''}
+        ${S.error?`<div style="color:${C.danger};font-size:12px;text-align:center;margin-top:8px;">${S.error}</div>`:''}
+      </div>
+      `:`
+      <!-- VIEW MODE -->
       <div class="info-grid">
         <div class="info-cell"><div class="info-label">👤 First Name</div><div class="info-val">${v.firstName}</div></div>
         <div class="info-cell"><div class="info-label">👤 Last Name</div><div class="info-val">${v.lastName}</div></div>
@@ -902,11 +1022,11 @@ function renderVoterModal(){
         <div class="info-cell"><div class="info-label">🏘️ Barangay</div><div class="info-val">${v.barangay}</div></div>
         <div class="info-cell"><div class="info-label">💼 Occupation</div><div class="info-val">${v.occupation}</div></div>
         <div class="info-cell"><div class="info-label">🎂 Birthday</div><div class="info-val">${fmtBday(v.birthday)}</div></div>
-        <div class="info-cell"><div class="info-label">🎂 Age</div><div class="info-val">${age||'Not set'} ${age?'years old':''}</div></div>
+        <div class="info-cell"><div class="info-label">🎂 Age</div><div class="info-val">${age||'Not set'}${age?' years old':''}</div></div>
         <div class="info-cell"><div class="info-label">👤 Gender</div><div class="info-val">${v.gender}</div></div>
         <div class="info-cell"><div class="info-label">📊 Age Group</div><div class="info-val">${ag}</div></div>
         <div class="info-cell" style="grid-column:span 2"><div class="info-label">📱 Contact</div><div class="info-val">${v.contact||'Not provided'}</div></div>
-      </div>
+      </div>`}
 
       <!-- SUPPORT LEVEL -->
       <div style="background:${sclr}15;border-radius:12px;padding:13px 16px;border:1px solid ${sclr}30;margin-bottom:12px;">
@@ -922,15 +1042,15 @@ function renderVoterModal(){
 
       <!-- NOTES -->
       <div style="margin-bottom:14px;">
-        <div style="font-size:11px;color:${C.muted};margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">📝 Field Notes / Canvassing Notes</div>
+        <div style="font-size:11px;color:${C.muted};margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">📝 Field Notes</div>
         ${canEdit?`
-        <textarea id="voter-notes" class="inp" style="resize:vertical;min-height:90px;line-height:1.5;" placeholder="Add notes about this voter — canvassing observations, concerns, commitments, etc.">${v.notes||''}</textarea>
+        <textarea id="voter-notes" class="inp" style="resize:vertical;min-height:80px;line-height:1.5;" placeholder="Canvassing notes, observations, commitments...">${v.notes||''}</textarea>
         <button onclick="saveNotes('${v.id}',document.getElementById('voter-notes').value)" style="margin-top:8px;width:100%;padding:10px;border-radius:10px;border:none;background:${C.navy};color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;">Save Notes ✓</button>
-        ${S.success?`<div style="color:${C.success};font-size:12px;text-align:center;margin-top:6px;">${S.success}</div>`:''}`:`
+        ${!editMode&&S.success?`<div style="color:${C.success};font-size:12px;text-align:center;margin-top:6px;">${S.success}</div>`:''}`:`
         <div style="background:${C.bg};border-radius:10px;padding:12px;font-size:13px;color:${v.notes?C.text:C.muted};line-height:1.5;min-height:60px;">${v.notes||'No notes recorded.'}</div>`}
       </div>
 
-      <button style="width:100%;padding:13px;border-radius:12px;border:2px solid ${C.border};background:transparent;color:${C.muted};font-size:13px;cursor:pointer;font-family:'Outfit',sans-serif;" onclick="S.modal=null;render()">Close</button>
+      <button style="width:100%;padding:13px;border-radius:12px;border:2px solid ${C.border};background:transparent;color:${C.muted};font-size:13px;cursor:pointer;font-family:'Outfit',sans-serif;" onclick="S.modal=null;S.success='';S.error='';render()">Close</button>
     </div>
   </div>`;
 }
@@ -1009,6 +1129,22 @@ function renderAddUserModal(){
 function setTab(t){ S.tab=t; S.modal=null; S.selectedBarangay=null; S.error=''; S.success=''; render(); }
 function resubVoters(){ render(); setTimeout(()=>{ S.unsubs.forEach(u=>u()); S.unsubs=[]; subscribeVoters(); subscribeFeed(); subscribeStats(); subscribeUsers(); },50); }
 
+let searchTimer=null;
+function doSearch(val){
+  S.search=val;
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(()=>{
+    // Only re-render the voter list area, not the whole page
+    const listEl=document.getElementById('voter-list');
+    if(listEl){
+      const voters=filteredVoters();
+      listEl.innerHTML=renderVoterList(voters);
+    } else {
+      render();
+    }
+  },200);
+}
+
 function openVoterDetail(id){
   const v=S.voters.find(x=>x.id===id);
   if(v){ S.modal={type:'voterDetail',data:{...v}}; S.success=''; render(); }
@@ -1074,6 +1210,49 @@ function renderMain(){
   else if(S.tab==='admin')     body=renderAdmin();
   return `${renderHeader()}<div class="content">${body}</div>${renderNav()}${renderModal()}`;
 }
+
+/* ════════════════════════════════════════════════════
+   FIREBASE AUTH STATE LISTENER
+   ════════════════════════════════════════════════════ */
+auth.onAuthStateChanged(async user=>{
+  if(user){
+    try{
+      let snap=await db.collection('users').doc(user.uid).get();
+      if(!snap.exists){
+        const all=await db.collection('users').limit(1).get();
+        if(all.empty){
+          await db.collection('users').doc(user.uid).set({
+            name:'Administrator',email:user.email,role:'admin',barangay:'',active:true
+          });
+          snap=await db.collection('users').doc(user.uid).get();
+        } else {
+          await auth.signOut();
+          set({loginLoading:false,loginError:'Account not found. Contact your admin.',screen:'login'});
+          return;
+        }
+      }
+      const profile=snap.data();
+      if(profile.active===false){
+        await auth.signOut();
+        set({loginLoading:false,loginError:'Your account has been deactivated.',screen:'login'});
+        return;
+      }
+      S.user=user; S.profile=profile; S.screen='main'; S.loginLoading=false;
+      subscribeVoters();
+      subscribeFeed();
+      subscribeStats();
+      subscribeUsers();
+      render();
+    }catch(e){
+      await auth.signOut();
+      set({loginLoading:false,loginError:'Error: '+e.message,screen:'login'});
+    }
+  } else {
+    set({screen:'login',loginLoading:false});
+  }
+});
+
+render();
 </script>
 </body>
 </html>
