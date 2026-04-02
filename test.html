@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<h2 id="status">Testing Firebase...</h2>
+<script>
+try {
+  firebase.initializeApp({
+    apiKey: "AIzaSyDAiY7Mc4tpm9MipGrnqSa4iNbgoAG-upk",
+    authDomain: "tubigon-crm-db552.firebaseapp.com",
+    projectId: "tubigon-crm-db552",
+    storageBucket: "tubigon-crm-db552.firebasestorage.app",
+    messagingSenderId: "764765774002",
+    appId: "1:764765774002:web:1e737e77fa54a3eeed69ab"
+  });
+  document.getElementById('status').textContent = '✅ Firebase connected!';
+  document.getElementById('status').style.color = 'green';
+} catch(e) {
+  document.getElementById('status').textContent = '❌ Error: ' + e.message;
+  document.getElementById('status').style.color = 'red';
+}
+</script>
+</body>
+</html>
