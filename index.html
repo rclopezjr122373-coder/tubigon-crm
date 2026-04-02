@@ -877,18 +877,26 @@ function renderAdmin(){
       </div>
       ${S.systemUsers.length===0?`<div style="font-size:13px;color:${C.muted};text-align:center;padding:20px;">No users yet.</div>`:''}
       ${S.systemUsers.map(u=>`
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid ${C.border};">
-          <div style="width:36px;height:36px;border-radius:10px;background:${C.navy}15;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">${u.role==='admin'?'🛡️':u.role==='coordinator'?'📋':'🤝'}</div>
-          <div style="flex:1;">
-            <div style="font-size:13px;font-weight:600;color:${C.text};">${u.name||u.email}</div>
-            <div style="font-size:11px;color:${C.muted};">${u.role}${u.barangay?' · '+u.barangay:''}</div>
+        <div style="padding:10px 0;border-bottom:1px solid ${C.border};">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:${C.navy}15;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">${u.role==='admin'?'🛡️':u.role==='coordinator'?'📋':'🤝'}</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:600;color:${C.text};">${u.name||u.email}</div>
+              <div style="font-size:11px;color:${C.muted};">${u.role}${u.barangay?' · '+u.barangay:''}</div>
+              <div style="font-size:11px;color:${C.muted};margin-top:1px;">${u.email||''}</div>
+            </div>
+            <span class="badge" style="background:${u.active!==false?C.success:C.muted}22;color:${u.active!==false?C.success:C.muted};">${u.active!==false?'active':'inactive'}</span>
           </div>
-          <span class="badge" style="background:${u.active!==false?C.success:C.muted}22;color:${u.active!==false?C.success:C.muted};">${u.active!==false?'active':'inactive'}</span>
+          <div style="display:flex;gap:7px;margin-top:9px;">
+            <button onclick="openEditUser('${u.id}')" style="flex:1;padding:7px;border-radius:8px;border:1px solid ${C.border};background:transparent;color:${C.navy};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✏️ Edit</button>
+            <button onclick="toggleUserActive('${u.id}',${u.active!==false})" style="flex:1;padding:7px;border-radius:8px;border:1px solid ${u.active!==false?C.gold:C.success};background:transparent;color:${u.active!==false?C.gold:C.success};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">${u.active!==false?'⏸ Deactivate':'▶ Activate'}</button>
+            <button onclick="deleteUser('${u.id}','${(u.name||u.email).replace(/'/g,'')}') " style="flex:1;padding:7px;border-radius:8px;border:1px solid ${C.danger};background:transparent;color:${C.danger};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">🗑 Delete</button>
+          </div>
         </div>`).join('')}
     </div>
     <div class="card" style="background:${C.navy}06;border:1px solid ${C.border};">
       <div style="font-size:12px;color:${C.muted};line-height:1.7;">
-        <strong style="color:${C.navy};">Coordinator access:</strong> Each coordinator can only view, add, and edit voters in their assigned barangay. They cannot access other barangays.
+        <strong style="color:${C.navy};">Coordinator access:</strong> Each coordinator can only view, add, and edit voters in their assigned barangay. Deactivating a user blocks their login immediately.
       </div>
     </div>`:''}
 
@@ -936,6 +944,7 @@ function renderModal(){
   if(S.modal.type==='voterDetail') return renderVoterModal();
   if(S.modal.type==='addVoter')    return renderAddVoterModal();
   if(S.modal.type==='addUser')     return renderAddUserModal();
+  if(S.modal.type==='editUser')    return renderEditUserModal();
   return '';
 }
 
@@ -1097,6 +1106,43 @@ function renderAddVoterModal(){
   </div>`;
 }
 
+/* ── EDIT USER MODAL ── */
+function renderEditUserModal(){
+  const u=S.modal.data;
+  const inp=`padding:11px 13px;border-radius:10px;border:2px solid ${C.border};font-size:13px;outline:none;font-family:'Outfit',sans-serif;width:100%;box-sizing:border-box;`;
+  const lbl=`font-size:10px;color:${C.muted};margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;display:block;`;
+  return `
+  <div class="modal-overlay" onclick="if(event.target===this){S.modal=null;S.error='';render();}">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div style="font-size:18px;font-weight:800;color:${C.text};margin-bottom:18px;">✏️ Edit User</div>
+      ${S.error?`<div class="err-box">${S.error}</div>`:''}
+      ${S.success?`<div class="ok-box">${S.success}</div>`:''}
+      <div style="display:flex;flex-direction:column;gap:13px;">
+        <div><label style="${lbl}">Full Name</label><input id="eu-name" style="${inp}" value="${u.name||''}"/></div>
+        <div><label style="${lbl}">Email</label><input id="eu-email" type="email" style="${inp}" value="${u.email||''}"/></div>
+        <div><label style="${lbl}">Role</label>
+          <select id="eu-role" style="${inp}">
+            <option ${u.role==='coordinator'?'selected':''}>coordinator</option>
+            <option ${u.role==='volunteer'?'selected':''}>volunteer</option>
+            <option ${u.role==='admin'?'selected':''}>admin</option>
+          </select>
+        </div>
+        <div><label style="${lbl}">Assigned Barangay</label>
+          <select id="eu-brgy" style="${inp}">
+            <option value="">— None —</option>
+            ${BARANGAYS.map(b=>`<option ${u.barangay===b?'selected':''}>${b}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button style="flex:1;padding:13px;border-radius:12px;border:2px solid ${C.border};background:transparent;color:${C.muted};font-size:13px;cursor:pointer;font-family:'Outfit',sans-serif;" onclick="S.modal=null;S.error='';render()">Cancel</button>
+        <button onclick="saveEditUser('${u.id}')" style="flex:2;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,${C.navy},${C.teal});color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:'Outfit',sans-serif;">Save Changes ✓</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 /* ── ADD USER MODAL ── */
 function renderAddUserModal(){
   const inp=`padding:11px 13px;border-radius:10px;border:2px solid ${C.border};font-size:13px;outline:none;font-family:'Outfit',sans-serif;width:100%;box-sizing:border-box;`;
@@ -1251,6 +1297,38 @@ auth.onAuthStateChanged(async user=>{
     set({screen:'login',loginLoading:false});
   }
 });
+
+function openEditUser(uid){
+  const u=S.systemUsers.find(x=>x.id===uid);
+  if(u){ S.modal={type:'editUser',data:{...u}}; S.error=''; S.success=''; render(); }
+}
+
+async function saveEditUser(uid){
+  const name  = document.getElementById('eu-name')?.value.trim();
+  const email = document.getElementById('eu-email')?.value.trim();
+  const role  = document.getElementById('eu-role')?.value;
+  const brgy  = document.getElementById('eu-brgy')?.value;
+  if(!name||!email){ S.error='Name and email are required.'; render(); return; }
+  try{
+    await db.collection('users').doc(uid).update({name,email,role,barangay:brgy});
+    S.success='User updated ✓'; S.error=''; render();
+    setTimeout(()=>{ S.modal=null; S.success=''; render(); },1500);
+  }catch(e){ S.error='Failed: '+e.message; render(); }
+}
+
+async function toggleUserActive(uid, currentlyActive){
+  if(!confirm(currentlyActive?'Deactivate this user? They will be blocked from logging in.':'Activate this user?')) return;
+  try{
+    await db.collection('users').doc(uid).update({active:!currentlyActive});
+  }catch(e){ alert('Failed: '+e.message); }
+}
+
+async function deleteUser(uid, name){
+  if(!confirm('Delete user "'+name+'"? This cannot be undone.\nNote: This only removes them from the CRM — you must also delete them in Firebase Authentication separately.')) return;
+  try{
+    await db.collection('users').doc(uid).delete();
+  }catch(e){ alert('Failed: '+e.message); }
+}
 
 render();
 </script>
