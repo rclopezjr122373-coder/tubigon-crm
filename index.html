@@ -61,13 +61,13 @@
 /* ════════════════════════════════════════════════════
    ⚠️  PASTE YOUR FIREBASE CONFIG HERE
    ════════════════════════════════════════════════════ */
-const firebaseConfig = {
-  apiKey: "AIzaSyDAiY7Mc4tpm9MipGrnqSa4iNbgoAG-upk",
-  authDomain: "tubigon-crm-db552.firebaseapp.com",
-  projectId: "tubigon-crm-db552",
-  storageBucket: "tubigon-crm-db552.firebasestorage.app",
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDAiY7Mc4tpm9MipGrnqSa4iNbgoAG-upk",
+  authDomain:        "tubigon-crm-db552.firebaseapp.com",
+  projectId:         "tubigon-crm-db552",
+  storageBucket:     "tubigon-crm-db552.firebasestorage.app",
   messagingSenderId: "764765774002",
-  appId: "1:764765774002:web:1e737e77fa54a3eeed69ab"
+  appId:             "1:764765774002:web:1e737e77fa54a3eeed69ab"
 };
 
 /* ════════════════════════════════════════════════════
@@ -896,10 +896,13 @@ function renderVoterModal(){
       </div>
 
       <div class="info-grid">
+        <div class="info-cell"><div class="info-label">👤 First Name</div><div class="info-val">${v.firstName}</div></div>
+        <div class="info-cell"><div class="info-label">👤 Last Name</div><div class="info-val">${v.lastName}</div></div>
+        <div class="info-cell" style="grid-column:span 2"><div class="info-label">👤 Middle Name</div><div class="info-val">${v.middleName||'—'}</div></div>
         <div class="info-cell"><div class="info-label">🏘️ Barangay</div><div class="info-val">${v.barangay}</div></div>
         <div class="info-cell"><div class="info-label">💼 Occupation</div><div class="info-val">${v.occupation}</div></div>
         <div class="info-cell"><div class="info-label">🎂 Birthday</div><div class="info-val">${fmtBday(v.birthday)}</div></div>
-        <div class="info-cell"><div class="info-label">🎂 Age</div><div class="info-val">${age||'?'} years old</div></div>
+        <div class="info-cell"><div class="info-label">🎂 Age</div><div class="info-val">${age||'Not set'} ${age?'years old':''}</div></div>
         <div class="info-cell"><div class="info-label">👤 Gender</div><div class="info-val">${v.gender}</div></div>
         <div class="info-cell"><div class="info-label">📊 Age Group</div><div class="info-val">${ag}</div></div>
         <div class="info-cell" style="grid-column:span 2"><div class="info-label">📱 Contact</div><div class="info-val">${v.contact||'Not provided'}</div></div>
@@ -953,6 +956,7 @@ function renderAddVoterModal(){
           <div><label style="${lbl}">First Name *</label><input id="nv-fn" style="${inp}" placeholder="First name" value="${d.firstName||''}"/></div>
           <div><label style="${lbl}">Last Name *</label><input id="nv-ln" style="${inp}" placeholder="Last name" value="${d.lastName||''}"/></div>
         </div>
+        <div><label style="${lbl}">Middle Name (optional)</label><input id="nv-mn" style="${inp}" placeholder="Middle name" value="${d.middleName||''}"/></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
           <div>
             <label style="${lbl}">🎂 Birthday *</label>
@@ -1040,7 +1044,7 @@ async function saveNewVoter(){
   const age=calcAge(bday);
   if(age<18){ S.error='Voter must be at least 18 years old.'; render(); return; }
   try{
-    await addVoter({firstName:fn,lastName:ln,birthday:bday,gender:gen,barangay:brgy,occupation:occ,contact:con});
+    const mn=document.getElementById('nv-mn')?.value.trim(); await addVoter({firstName:fn,middleName:mn||'',lastName:ln,birthday:bday,gender:gen,barangay:brgy,occupation:occ,contact:con});
     S.modal=null; S.error=''; render();
   }catch(e){ S.error='Failed to save: '+e.message; render(); }
 }
