@@ -1074,6 +1074,49 @@ function renderMain(){
   else if(S.tab==='admin')     body=renderAdmin();
   return `${renderHeader()}<div class="content">${body}</div>${renderNav()}${renderModal()}`;
 }
+
+/* ════════════════════════════════════════════════════
+   FIREBASE AUTH STATE LISTENER
+   ════════════════════════════════════════════════════ */
+auth.onAuthStateChanged(async user=>{
+  if(user){
+    try{
+      let snap=await db.collection('users').doc(user.uid).get();
+      if(!snap.exists){
+        const all=await db.collection('users').limit(1).get();
+        if(all.empty){
+          await db.collection('users').doc(user.uid).set({
+            name:'Administrator',email:user.email,role:'admin',barangay:'',active:true
+          });
+          snap=await db.collection('users').doc(user.uid).get();
+        } else {
+          await auth.signOut();
+          set({loginLoading:false,loginError:'Account not found. Contact your admin.',screen:'login'});
+          return;
+        }
+      }
+      const profile=snap.data();
+      if(profile.active===false){
+        await auth.signOut();
+        set({loginLoading:false,loginError:'Your account has been deactivated.',screen:'login'});
+        return;
+      }
+      S.user=user; S.profile=profile; S.screen='main'; S.loginLoading=false;
+      subscribeVoters();
+      subscribeFeed();
+      subscribeStats();
+      subscribeUsers();
+      render();
+    }catch(e){
+      await auth.signOut();
+      set({loginLoading:false,loginError:'Error: '+e.message,screen:'login'});
+    }
+  } else {
+    set({screen:'login',loginLoading:false});
+  }
+});
+
+render();
 </script>
 </body>
 </html>
