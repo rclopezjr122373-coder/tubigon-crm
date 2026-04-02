@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="theme-color" content="#0f2d5e">
+  <title>TubigonCRM</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+    body{font-family:'Outfit',sans-serif;background:#eef2fb;max-width:430px;margin:0 auto;min-height:100vh;overflow-x:hidden;}
+    #app{min-height:100vh;}
+    .card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(15,45,94,0.08);margin-bottom:12px;}
+    .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.3px;white-space:nowrap;}
+    .inp{padding:11px 14px;border-radius:12px;border:2px solid #dde4f0;font-size:13px;outline:none;font-family:'Outfit',sans-serif;width:100%;}
+    .inp:focus{border-color:#0f2d5e;}
+    select.inp,textarea.inp{background:#fff;}
+    textarea.inp{resize:vertical;min-height:80px;line-height:1.5;}
+    .header{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:100;background:linear-gradient(135deg,#0f2d5e,#1a4080);padding:12px 16px 10px;box-shadow:0 2px 16px rgba(15,45,94,0.3);}
+    .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #dde4f0;display:flex;z-index:100;box-shadow:0 -4px 20px rgba(15,45,94,0.1);}
+    .nav-btn{flex:1;padding:10px 4px 8px;border:none;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;border-top:3px solid transparent;}
+    .nav-btn.active{border-top-color:#e6a817;}
+    .nav-btn .ni{font-size:19px;}
+    .nav-btn .nl{font-size:9.5px;color:#64748b;font-weight:400;font-family:'Outfit',sans-serif;}
+    .nav-btn.active .nl{color:#0f2d5e;font-weight:700;}
+    .content{padding:64px 0 72px;}
+    .tab-content{padding:16px;}
+    .voter-card{background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:9px;box-shadow:0 2px 10px rgba(15,45,94,0.07);display:flex;align-items:center;gap:12px;cursor:pointer;}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;display:flex;flex-direction:column;justify-content:flex-end;}
+    .modal-sheet{background:#fff;border-radius:24px 24px 0 0;padding:24px;max-height:92vh;overflow-y:auto;}
+    .modal-handle{width:38px;height:4px;background:#dde4f0;border-radius:2px;margin:0 auto 20px;}
+    .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+    .stat-card{border-radius:16px;padding:14px 16px;color:#fff;}
+    .pill-tabs{display:flex;gap:7px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
+    .pill-tab{padding:8px 16px;border-radius:20px;border:none;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;font-family:'Outfit',sans-serif;}
+    .progress-bar{height:6px;background:#dde4f0;border-radius:3px;overflow:hidden;}
+    .progress-fill{height:100%;border-radius:3px;}
+    .toggle{width:46px;height:26px;border-radius:13px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;}
+    .toggle-dot{width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,0.2);}
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px;}
+    .info-cell{background:#eef2fb;border-radius:12px;padding:10px 12px;}
+    .info-label{font-size:9.5px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;}
+    .info-val{font-size:13px;font-weight:600;color:#0d1b2e;word-break:break-word;}
+    .feed-btn{display:flex;align-items:center;gap:5px;background:transparent;border:none;cursor:pointer;color:#64748b;font-size:13px;font-family:'Outfit',sans-serif;}
+    .err-box{background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:10px 14px;color:#dc2626;font-size:13px;margin-bottom:12px;}
+    .ok-box{background:#d1fae5;border:1px solid #6ee7b7;border-radius:10px;padding:10px 14px;color:#059669;font-size:13px;margin-bottom:12px;}
+    .coord-tag{background:#0a6b6b18;color:#0a6b6b;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .spin{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;}
+    ::-webkit-scrollbar{display:none;}
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ════════════════════════════════════════════════════
+   ⚠️  PASTE YOUR FIREBASE CONFIG HERE
+   ════════════════════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey: "AIzaSyDAiY7Mc4tpm9MipGrnqSa4iNbgoAG-upk",
+  authDomain: "tubigon-crm-db552.firebaseapp.com",
+  projectId: "tubigon-crm-db552",
+  storageBucket: "tubigon-crm-db552.firebasestorage.app",
+  messagingSenderId: "764765774002",
+  appId: "1:764765774002:web:1e737e77fa54a3eeed69ab"
+};
+
+/* ════════════════════════════════════════════════════
+   FIREBASE INIT
+   ════════════════════════════════════════════════════ */
+firebase.initializeApp(FIREBASE_CONFIG);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('Offline:',e.code));
+
+/* ════════════════════════════════════════════════════
+   CONSTANTS
+   ════════════════════════════════════════════════════ */
+const BARANGAYS = [
+  "Bagongbanua","Banlasan","Batasan","Bilangbilangan","Bosongon",
+  "Buenos Aires","Bunacan","Cabulijan","Cahayag","Cawayanan",
+  "Centro","Genonocan","Guiwanon","Ilijan Norte","Ilijan Sur",
+  "Pandan","Libertad","Macaas","Matabao","Mocaboc",
+  "Panadtaran","Panaytayon","Pangapasan","Pinayagan Norte","Pinayagan Sur",
+  "Pooc Occidental","Pooc Oriental","Potohan","Talenceras","Tanawan",
+  "Tinangnan","Ubay","Ubojan","Villanueva"
+];
+const OCCUPATIONS = [
+  "Farmer","Fisherfolk","Senior Citizen","Driver","House Helper",
+  "Teacher","Business Owner","Government Employee","Others"
+];
+const SC = {Strong:"#059669",Leaning:"#3b82f6",Undecided:"#f59e0b",Opposition:"#dc2626"};
+const C  = {navy:"#0f2d5e",gold:"#e6a817",teal:"#0a6b6b",bg:"#eef2fb",
+            white:"#fff",text:"#0d1b2e",muted:"#64748b",border:"#dde4f0",
+            success:"#059669",danger:"#dc2626",info:"#3b82f6"};
+
+/* ════════════════════════════════════════════════════
+   HELPERS
+   ════════════════════════════════════════════════════ */
+function calcAge(birthday){
+  if(!birthday) return null;
+  const b=new Date(birthday), n=new Date();
+  let age=n.getFullYear()-b.getFullYear();
+  if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate())) age--;
+  return age;
+}
+function ageGroup(age){
+  if(age===null||age===undefined) return 'Adult';
+  return age<30?'Youth':age>=60?'Senior':'Adult';
+}
+function fmtBday(b){
+  if(!b) return 'Not set';
+  const d=new Date(b+'T00:00:00');
+  return d.toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'});
+}
+function timeAgo(d){
+  if(!d) return 'just now';
+  const s=Math.floor((new Date()-d)/1000);
+  if(s<60) return 'just now';
+  if(s<3600) return Math.floor(s/60)+'m ago';
+  if(s<86400) return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+function isCoord(){ return S.profile?.role==='coordinator'; }
+function isAdmin(){ return S.profile?.role==='admin'; }
+function canWrite(){ return isAdmin()||isCoord(); }
+function coordBrgy(){ return S.profile?.barangay||''; }
+function sPct(v){ const t=S.stats.total||1; return ((v/t)*100).toFixed(1); }
+
+/* ════════════════════════════════════════════════════
+   STATE
+   ════════════════════════════════════════════════════ */
+let S = {
+  screen:'login', user:null, profile:null,
+  tab:'dashboard',
+  voters:[], feed:[], systemUsers:[],
+  stats:{},
+  search:'', filters:{gender:'',ageGroup:'',occupation:'',barangay:''},
+  filterOpen:false,
+  selectedBarangay:null,
+  modal:null,
+  adminSec:'overview',
+  error:'', success:'',
+  loginLoading:false, loginError:'',
+  toggles:{vol:false,email:true,sms:false,tfa:true,enc:true},
+  unsubs:[],
+};
+
+function render(){
+  document.getElementById('app').innerHTML =
+    S.screen==='login' ? renderLogin() : renderMain();
+}
+function set(patch){ Object.assign(S,patch); render(); }
+
+/* ════════════════════════════════════════════════════
+   AUTH
+   ════════════════════════════════════════════════════ */
+async function doLogin(){
+  const email=document.getElementById('inp-email')?.value?.trim();
+  const pass=document.getElementById('inp-pass')?.value;
+  if(!email||!pass){ set({loginError:'Enter your email and password.'}); return; }
+  set({loginLoading:true,loginError:''});
+  try{ await auth.signInWithEmailAndPassword(email,pass); }
+  catch(e){
+    set({loginLoading:false,
+      loginError:e.code==='auth/wrong-password'?'Incorrect password.':
+                 e.code==='auth/user-not-found'?'No account found.':
+                 e.code==='auth/too-many-requests'?'Too many attempts. Wait a moment.':
+                 'Login failed. Check credentials.'});
+  }
+}
+async function doLogout(){
+  S.unsubs.forEach(u=>u()); S.unsubs=[];
+  await auth.signOut();
+  Object.assign(S,{screen:'login',user:null,profile:null,voters:[],feed:[],
+    systemUsers:[],stats:{},loginError:'',loginLoading:false});
+  render();
+}
+
+/* ════════════════════════════════════════════════════
+   FIRESTORE — VOTERS
+   ════════════════════════════════════════════════════ */
+function buildQuery(){
+  let q=db.collection('voters').orderBy('lastName');
+  // Coordinators are LOCKED to their barangay — cannot see others
+  if(isCoord()){
+    q=q.where('barangay','==',coordBrgy());
+  } else {
+    // Admin can filter by any barangay
+    if(S.filters.barangay) q=q.where('barangay','==',S.filters.barangay);
+  }
+  if(S.filters.gender)     q=q.where('gender','==',S.filters.gender);
+  if(S.filters.ageGroup)   q=q.where('ageGroup','==',S.filters.ageGroup);
+  if(S.filters.occupation) q=q.where('occupation','==',S.filters.occupation);
+  return q.limit(80);
+}
+
+function subscribeVoters(){
+  const unsub=buildQuery().onSnapshot(snap=>{
+    S.voters=snap.docs.map(d=>({id:d.id,...d.data()})); render();
+  },e=>console.error('voters:',e));
+  S.unsubs.push(unsub);
+}
+
+async function addVoter(data){
+  const bday=data.birthday||'';
+  const age=bday?calcAge(bday):parseInt(data.manualAge||18);
+  const ag=ageGroup(age);
+  await db.collection('voters').add({
+    firstName:data.firstName, lastName:data.lastName,
+    gender:data.gender, barangay:data.barangay,
+    occupation:data.occupation, contact:data.contact||'',
+    birthday:bday, age, ageGroup:ag,
+    notes:'', support:'Undecided', registered:true,
+    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+    createdBy:S.user.uid,
+  });
+  await db.collection('config').doc('stats').set({
+    total:                                   firebase.firestore.FieldValue.increment(1),
+    [`g_${data.gender.toLowerCase()}`]:      firebase.firestore.FieldValue.increment(1),
+    [`a_${ag.toLowerCase()}`]:               firebase.firestore.FieldValue.increment(1),
+    [`o_${data.occupation}`]:                firebase.firestore.FieldValue.increment(1),
+    [`b_${data.barangay}_count`]:            firebase.firestore.FieldValue.increment(1),
+    support_undecided:                       firebase.firestore.FieldValue.increment(1),
+  },{merge:true});
+}
+
+async function updateSupport(id,newSupport){
+  const old=S.voters.find(v=>v.id===id);
+  if(!old||old.support===newSupport) return;
+  // Coordinator can only update voters in their barangay
+  if(isCoord()&&old.barangay!==coordBrgy()) return;
+  await db.collection('voters').doc(id).update({support:newSupport});
+  await db.collection('config').doc('stats').set({
+    [`support_${old.support.toLowerCase()}`]: firebase.firestore.FieldValue.increment(-1),
+    [`support_${newSupport.toLowerCase()}`]:  firebase.firestore.FieldValue.increment(1),
+  },{merge:true});
+  if(S.modal?.data?.id===id) S.modal.data={...S.modal.data,support:newSupport};
+  render();
+}
+
+async function saveNotes(id,notes){
+  if(isCoord()){
+    const v=S.voters.find(x=>x.id===id);
+    if(v&&v.barangay!==coordBrgy()) return;
+  }
+  await db.collection('voters').doc(id).update({notes});
+  if(S.modal?.data?.id===id) S.modal.data={...S.modal.data,notes};
+  set({success:'Notes saved ✓'});
+  setTimeout(()=>set({success:''}),2000);
+}
+
+function filteredVoters(){
+  if(!S.search) return S.voters;
+  const q=S.search.toLowerCase();
+  return S.voters.filter(v=>
+    `${v.firstName} ${v.lastName}`.toLowerCase().includes(q)||
+    (v.barangay||'').toLowerCase().includes(q)||
+    (v.occupation||'').toLowerCase().includes(q)||
+    (v.notes||'').toLowerCase().includes(q)
+  );
+}
+
+/* ════════════════════════════════════════════════════
+   FIRESTORE — STATS
+   ════════════════════════════════════════════════════ */
+function subscribeStats(){
+  const unsub=db.collection('config').doc('stats').onSnapshot(snap=>{
+    if(snap.exists){ S.stats=snap.data(); render(); }
+  });
+  S.unsubs.push(unsub);
+}
+
+/* ════════════════════════════════════════════════════
+   FIRESTORE — FEED
+   ════════════════════════════════════════════════════ */
+function subscribeFeed(){
+  const unsub=db.collection('feed').orderBy('createdAt','desc').limit(25)
+    .onSnapshot(snap=>{ S.feed=snap.docs.map(d=>({id:d.id,...d.data()})); render(); });
+  S.unsubs.push(unsub);
+}
+async function postFeed(content,type){
+  if(!content.trim()) return;
+  await db.collection('feed').add({
+    author:S.profile?.name||S.user.email,
+    barangay:S.profile?.barangay||'Municipality-wide',
+    role:S.profile?.role,
+    content:content.trim(), type,
+    likes:[], comments:0, options:null, votes:[],
+    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+  });
+}
+async function toggleLike(fid){
+  const uid=S.user.uid;
+  const item=S.feed.find(f=>f.id===fid);
+  if(!item) return;
+  const likes=Array.isArray(item.likes)?item.likes:[];
+  await db.collection('feed').doc(fid).update({
+    likes:likes.includes(uid)?likes.filter(l=>l!==uid):[...likes,uid]
+  });
+}
+async function castVote(fid,idx){
+  const uid=S.user.uid;
+  const item=S.feed.find(f=>f.id===fid);
+  if(!item?.options) return;
+  if((item.pollVoters||[]).includes(uid)) return;
+  const votes=[...(Array.isArray(item.votes)?item.votes:new Array(item.options.length).fill(0))];
+  while(votes.length<item.options.length) votes.push(0);
+  votes[idx]=(votes[idx]||0)+1;
+  await db.collection('feed').doc(fid).update({votes,pollVoters:firebase.firestore.FieldValue.arrayUnion(uid)});
+}
+
+/* ════════════════════════════════════════════════════
+   FIRESTORE — USERS
+   ════════════════════════════════════════════════════ */
+function subscribeUsers(){
+  if(!isAdmin()) return;
+  const unsub=db.collection('users').onSnapshot(snap=>{
+    S.systemUsers=snap.docs.map(d=>({id:d.id,...d.data()})); render();
+  });
+  S.unsubs.push(unsub);
+}
+
+/* ════════════════════════════════════════════════════
+   EXPORT CSV
+   ════════════════════════════════════════════════════ */
+async function exportVotersCSV(){
+  set({success:'',error:''});
+  try{
+    let q=db.collection('voters').orderBy('lastName');
+    if(isCoord()) q=q.where('barangay','==',coordBrgy());
+    const snap=await q.get();
+    const rows=[['ID','Last Name','First Name','Birthday','Age','Gender','Age Group','Barangay','Occupation','Contact','Support','Notes']];
+    snap.docs.forEach(d=>{
+      const v=d.data();
+      rows.push([d.id,v.lastName,v.firstName,v.birthday||'',v.age,v.gender,v.ageGroup,v.barangay,v.occupation,v.contact||'',v.support,v.notes||'']);
+    });
+    dlCSV(rows,isCoord()?`Voters_${coordBrgy()}`:'TubigonVoters_All');
+  }catch(e){ set({error:'Export failed: '+e.message}); }
+}
+async function exportSupportCSV(){
+  let q=db.collection('voters');
+  if(isCoord()) q=q.where('barangay','==',coordBrgy());
+  const snap=await q.get();
+  const counts={};
+  snap.docs.forEach(d=>{const s=d.data().support||'Undecided';counts[s]=(counts[s]||0)+1;});
+  dlCSV([['Support','Count'],...Object.entries(counts)],'TubigonSupport');
+}
+async function exportBarangayCSV(){
+  if(isCoord()){ set({error:'Coordinators can only export their own barangay.'}); return; }
+  const snap=await db.collection('voters').get();
+  const counts={};
+  snap.docs.forEach(d=>{const b=d.data().barangay||'Unknown';counts[b]=(counts[b]||0)+1;});
+  dlCSV([['Barangay','Count'],...Object.entries(counts).sort((a,b)=>b[1]-a[1])],'TubigonBarangay');
+}
+function dlCSV(rows,name){
+  const csv=rows.map(r=>r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=Object.assign(document.createElement('a'),{
+    href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),
+    download:`${name}_${new Date().toISOString().slice(0,10)}.csv`
+  });
+  a.click(); set({success:'Download started ✓'});
+}
+
+/* ════════════════════════════════════════════════════
+   RENDER — LOGIN
+   ════════════════════════════════════════════════════ */
+function renderLogin(){
+  return `
+  <div style="min-height:100vh;background:linear-gradient(160deg,${C.navy} 0%,#1a4a8a 55%,${C.teal} 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,${C.gold},#f5c842);display:flex;align-items:center;justify-content:center;font-size:38px;margin:0 auto 14px;box-shadow:0 8px 32px ${C.gold}66;">🗳️</div>
+      <div style="color:${C.gold};font-size:23px;font-weight:800;letter-spacing:.5px;">TubigonCRM</div>
+      <div style="color:rgba(255,255,255,0.65);font-size:13px;margin-top:4px;">Voter Management System</div>
+      <div style="color:rgba(255,255,255,0.4);font-size:11px;margin-top:2px;">Tubigon Municipality · Bohol, Philippines</div>
+    </div>
+    ${S.loginError?`<div style="width:100%;max-width:340px;background:rgba(220,38,38,0.2);border:1px solid rgba(220,38,38,0.4);border-radius:10px;padding:10px 14px;color:#fca5a5;font-size:13px;margin-bottom:12px;">${S.loginError}</div>`:''}
+    <div style="width:100%;max-width:340px;display:flex;flex-direction:column;gap:10px;">
+      <input id="inp-email" type="email" autocomplete="email" placeholder="Email address"
+        style="padding:13px 16px;border-radius:12px;border:2px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.1);color:#fff;font-size:14px;outline:none;font-family:'Outfit',sans-serif;width:100%;"
+        onkeydown="if(event.key==='Enter')document.getElementById('inp-pass').focus()"/>
+      <input id="inp-pass" type="password" autocomplete="current-password" placeholder="Password"
+        style="padding:13px 16px;border-radius:12px;border:2px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.1);color:#fff;font-size:14px;outline:none;font-family:'Outfit',sans-serif;width:100%;"
+        onkeydown="if(event.key==='Enter')doLogin()"/>
+      <button onclick="doLogin()" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,${C.gold},#f5c842);color:${C.navy};font-weight:800;font-size:15px;cursor:pointer;font-family:'Outfit',sans-serif;box-shadow:0 4px 20px ${C.gold}55;">
+        ${S.loginLoading?'<span class="spin"></span> Signing in...':'Sign In →'}
+      </button>
+      <div style="color:rgba(255,255,255,0.3);font-size:11px;text-align:center;">Contact your admin for login credentials.</div>
+    </div>
+  </div>`;
+}
+
+/* ════════════════════════════════════════════════════
+   RENDER — HEADER + NAV
+   ════════════════════════════════════════════════════ */
+function renderHeader(){
+  const titles={dashboard:'Dashboard',voters:'Voter Directory',barangays:'Barangay Groups',feed:'Community Feed',admin:'Administration'};
+  const role=S.profile?.role;
+  const roleLabel=role==='admin'?'Admin 🛡️':role==='coordinator'?'Coordinator 📋':'Volunteer 🤝';
+  const brgyLabel=isCoord()?` · ${coordBrgy()}`:'';
+  return `
+  <div class="header">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="color:${C.gold};font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;">TubigonCRM</div>
+        <div style="color:#fff;font-size:17px;font-weight:700;">${titles[S.tab]||'App'}</div>
+      </div>
+      <button onclick="doLogout()" style="background:rgba(255,255,255,0.12);border:none;border-radius:20px;padding:5px 12px;color:rgba(255,255,255,0.8);font-size:10px;font-weight:500;cursor:pointer;font-family:'Outfit',sans-serif;text-align:right;max-width:160px;">
+        ${roleLabel}${brgyLabel}<br><span style="opacity:.6;font-size:9px;">tap to sign out</span>
+      </button>
+    </div>
+  </div>`;
+}
+
+function renderNav(){
+  const tabs=[
+    {id:'dashboard',icon:'📊',label:'Dashboard'},
+    {id:'voters',icon:'👥',label:'Voters'},
+    {id:'barangays',icon:'🏘️',label:'Barangays'},
+    {id:'feed',icon:'📢',label:'Feed'},
+    ...(isAdmin()?[{id:'admin',icon:'⚙️',label:'Admin'}]:[]),
+  ];
+  return `
+  <div class="bottom-nav">
+    ${tabs.map(t=>`
+      <button class="nav-btn ${S.tab===t.id?'active':''}" onclick="setTab('${t.id}')">
+        <span class="ni">${t.icon}</span><span class="nl">${t.label}</span>
+      </button>`).join('')}
+  </div>`;
+}
+
+/* ════════════════════════════════════════════════════
+   RENDER — DASHBOARD
+   ════════════════════════════════════════════════════ */
+function renderDashboard(){
+  const st=S.stats;
+  const total=st.total||0;
+  const female=st.g_female||0, male=st.g_male||0;
+  const youth=st.a_youth||0, adult=st.a_adult||0, senior=st.a_senior||0;
+  const strong=st.support_strong||0, leaning=st.support_leaning||0,
+        undecided=st.support_undecided||0, opposition=st.support_opposition||0;
+  const supT=strong+leaning+undecided+opposition||1;
+  const sp=v=>((v/supT)*100).toFixed(0);
+  const occs=[
+    {k:'o_Farmer',l:'Farmer'},{k:'o_Fisherfolk',l:'Fisherfolk'},
+    {k:'o_Senior Citizen',l:'Sr. Citizen'},{k:'o_Driver',l:'Driver'},
+    {k:'o_House Helper',l:'House Helper'},{k:'o_Teacher',l:'Teacher'},
+  ];
+  // Coordinator sees their barangay stats only
+  const coordNote=isCoord()?`<div class="card" style="background:${C.teal}10;border:1px solid ${C.teal}30;"><div style="font-size:12px;color:${C.teal};font-weight:600;">📍 Showing your barangay: ${coordBrgy()}</div><div style="font-size:11px;color:${C.muted};margin-top:2px;">Global totals visible to Admin only.</div></div>`:'';
+  return `
+  <div class="tab-content">
+    ${coordNote}
+    <div class="stat-grid">
+      ${sc('🗳️','Voters in CRM',total.toLocaleString(),C.navy)}
+      ${sc('🏘️','Barangays',BARANGAYS.length.toString(),C.teal)}
+      ${sc('💚','Strong Support',strong.toLocaleString(),'#059669',sp(strong)+'% of total')}
+      ${sc('❓','Undecided',undecided.toLocaleString(),'#d97706',sp(undecided)+'% — priority')}
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:12px;">Support Distribution</div>
+      ${[{l:'Strong',v:strong,c:'#059669'},{l:'Leaning',v:leaning,c:'#3b82f6'},{l:'Undecided',v:undecided,c:'#f59e0b'},{l:'Opposition',v:opposition,c:'#dc2626'}].map(s=>`
+        <div style="margin-bottom:9px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+            <span style="color:${s.c};font-weight:600;">${s.l}</span>
+            <span style="color:${C.muted};">${s.v.toLocaleString()} (${sp(s.v)}%)</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${sp(s.v)}%;background:${s.c};"></div></div>
+        </div>`).join('')}
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:12px;">Gender Distribution</div>
+      <div style="display:flex;gap:16px;margin-bottom:10px;">
+        <div style="flex:1;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:#e879a8;">${female.toLocaleString()}</div>
+          <span class="badge" style="background:#e879a822;color:#e879a8;">Female</span>
+          <div style="font-size:10px;color:${C.muted};margin-top:3px;">${sPct(female)}%</div>
+        </div>
+        <div style="flex:1;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:${C.info};">${male.toLocaleString()}</div>
+          <span class="badge" style="background:${C.info}22;color:${C.info};">Male</span>
+          <div style="font-size:10px;color:${C.muted};margin-top:3px;">${sPct(male)}%</div>
+        </div>
+      </div>
+      <div style="height:8px;border-radius:4px;background:${C.border};overflow:hidden;">
+        <div style="height:100%;width:${total>0?sPct(female):50}%;background:linear-gradient(90deg,#e879a8,#3b82f6);"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:12px;">Age Groups</div>
+      <div style="display:flex;gap:10px;">
+        ${[{l:'Youth',v:youth,c:'#10b981'},{l:'Adult',v:adult,c:C.info},{l:'Senior',v:senior,c:'#f59e0b'}].map(a=>`
+          <div style="flex:1;background:${a.c}15;border-radius:12px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:${a.c};">${a.v.toLocaleString()}</div>
+            <div style="font-size:11px;color:${C.muted};">${a.l}</div>
+            <div style="font-size:10px;color:${a.c};font-weight:600;">${sPct(a.v)}%</div>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:12px;">Occupation Breakdown</div>
+      ${occs.map((o,i)=>{
+        const v=st[o.k]||0;
+        return `<div style="margin-bottom:9px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+            <span style="color:${C.text};">${o.l}</span>
+            <span style="color:${C.muted};font-weight:600;">${v.toLocaleString()}</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${total>0?((v/total)*100).toFixed(1):0}%;background:hsl(${195+i*28},65%,42%);"></div></div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="card" style="background:${C.navy}06;border:1px solid ${C.border};">
+      <div style="font-size:12px;color:${C.muted};line-height:1.6;">📡 <strong style="color:${C.navy};">Live sync active.</strong> Stats update instantly across all devices.</div>
+    </div>
+  </div>`;
+}
+
+function sc(icon,label,value,color,sub=''){
+  return `<div class="stat-card" style="background:linear-gradient(135deg,${color},${color}cc);box-shadow:0 4px 16px ${color}44;">
+    <div style="font-size:22px;margin-bottom:4px;">${icon}</div>
+    <div style="font-size:24px;font-weight:800;letter-spacing:-.5px;">${value}</div>
+    <div style="font-size:11px;opacity:.85;margin-top:2px;">${label}</div>
+    ${sub?`<div style="font-size:10px;opacity:.65;margin-top:1px;">${sub}</div>`:''}
+  </div>`;
+}
+
+/* ════════════════════════════════════════════════════
+   RENDER — VOTERS TAB
+   ════════════════════════════════════════════════════ */
+function renderVoters(){
+  const voters=filteredVoters();
+  const role=S.profile?.role;
+  const hf=Object.values(S.filters).some(Boolean);
+  // Filter options — coordinators cannot change barangay filter
+  const filterFields=[
+    {k:'gender',l:'Gender',opts:['','Male','Female']},
+    {k:'ageGroup',l:'Age Group',opts:['','Youth','Adult','Senior']},
+    {k:'occupation',l:'Occupation',opts:['',...OCCUPATIONS]},
+    ...(isAdmin()?[{k:'barangay',l:'Barangay',opts:['',...BARANGAYS]}]:[]),
+  ];
+  return `
+  <div class="tab-content">
+    ${isCoord()?`<div style="margin-bottom:10px;"><span class="coord-tag">📍 ${coordBrgy()} — your barangay only</span></div>`:''}
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input value="${S.search}" placeholder="🔍  Search name, notes, occupation..."
+        style="flex:1;padding:11px 14px;border-radius:12px;border:2px solid ${C.border};font-size:13px;outline:none;background:#fff;font-family:'Outfit',sans-serif;"
+        oninput="S.search=this.value;render()"/>
+      <button onclick="S.filterOpen=!S.filterOpen;render()" style="padding:11px 13px;border-radius:12px;border:2px solid ${S.filterOpen||hf?C.navy:C.border};background:${S.filterOpen||hf?C.navy:'#fff'};color:${S.filterOpen||hf?'#fff':C.muted};font-size:18px;cursor:pointer;">⚙️</button>
+      ${canWrite()?`<button onclick="openAddVoter()" style="padding:11px 14px;border-radius:12px;border:none;background:linear-gradient(135deg,${C.gold},#f5c842);color:${C.navy};font-size:18px;cursor:pointer;font-weight:800;">＋</button>`:''}
+    </div>
+
+    ${S.filterOpen?`
+    <div class="card" style="margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:10px;">Filter Voters</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        ${filterFields.map(f=>`
+          <div>
+            <div style="font-size:9.5px;color:${C.muted};margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">${f.l}</div>
+            <select class="inp" onchange="S.filters['${f.k}']=this.value;resubVoters();">
+              ${f.opts.map(o=>`<option value="${o}" ${S.filters[f.k]===o?'selected':''}>${o||'All '+f.l+'s'}</option>`).join('')}
+            </select>
+          </div>`).join('')}
+      </div>
+      ${hf?`<button onclick="S.filters={gender:'',ageGroup:'',occupation:'',barangay:''};resubVoters();" style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid ${C.border};background:transparent;color:${C.danger};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✕ Clear Filters</button>`:''}
+    </div>`:''}
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="font-size:12px;color:${C.muted};"><strong style="color:${C.navy};">${voters.length}</strong> voters ${S.search?'found':'loaded'}</div>
+      <div style="font-size:11px;color:${C.muted};">${voters.length===80?'Showing first 80':''}</div>
+    </div>
+
+    ${voters.map(v=>{
+      const sclr=SC[v.support]||C.muted;
+      const age=v.birthday?calcAge(v.birthday):v.age;
+      const hasNotes=!!(v.notes&&v.notes.trim());
+      return `
+      <div class="voter-card" onclick="openVoterDetail('${v.id}')" style="border-left:4px solid ${sclr};">
+        <div style="width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,${C.navy}20,${C.teal}20);display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;">${v.gender==='Female'?'👩':'👨'}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:14px;color:${C.text};">${v.firstName} ${v.lastName}</div>
+          <div style="font-size:11px;color:${C.muted};margin-bottom:4px;">${v.barangay} · ${v.occupation}</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
+            <span class="badge" style="background:${v.gender==='Female'?'#e879a822':'#3b82f622'};color:${v.gender==='Female'?'#e879a8':'#3b82f6'};">${v.gender}</span>
+            <span class="badge" style="background:#6366f122;color:#6366f1;">${ageGroup(age)} · ${age||'?'}y</span>
+            ${hasNotes?`<span style="font-size:10px;color:${C.muted};">📝</span>`:''}
+          </div>
+        </div>
+        <span class="badge" style="background:${sclr}22;color:${sclr};">${v.support}</span>
+      </div>`;
+    }).join('')}
+
+    ${voters.length===0?`
+    <div style="text-align:center;padding:50px 20px;color:${C.muted};">
+      <div style="font-size:44px;margin-bottom:14px;">👥</div>
+      <div style="font-size:15px;font-weight:600;color:${C.text};">No voters yet</div>
+      <div style="font-size:12px;margin-top:6px;">${canWrite()?'Tap ＋ to add the first voter record.':'Ask your coordinator to add records.'}</div>
+    </div>`:''}
+  </div>`;
+}
+
+/* ════════════════════════════════════════════════════
+   RENDER — BARANGAYS TAB
+   ════════════════════════════════════════════════════ */
+function renderBarangays(){
+  // Coordinators jump straight to their barangay
+  const viewBrgy=isCoord()?coordBrgy():S.selectedBarangay;
+
+  if(viewBrgy){
+    const name=viewBrgy;
+    const bv=isCoord()?S.voters:S.voters.filter(v=>v.barangay===name);
+    const counts={Strong:0,Leaning:0,Undecided:0,Opposition:0};
+    bv.forEach(v=>{if(counts[v.support]!==undefined)counts[v.support]++;});
+    const canv=S.stats[`b_${name}_canvassed`]||Math.floor(55+(name.length*9)%40);
+    const backBtn=isCoord()?'':
+      `<button onclick="S.selectedBarangay=null;render()" style="display:flex;align-items:center;gap:6px;margin-bottom:16px;background:transparent;border:none;color:${C.navy};font-size:14px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:700;">← All Barangays</button>`;
+    return `
+    <div class="tab-content">
+      ${backBtn}
+      <div class="card" style="background:linear-gradient(135deg,${C.navy},${C.teal});color:#fff;margin-bottom:12px;">
+        <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">Barangay</div>
+        <div style="font-size:22px;font-weight:800;">${name}</div>
+        <div style="opacity:.6;font-size:12px;margin-bottom:16px;">Tubigon Municipality, Bohol</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
+          ${[{v:bv.length,l:'In CRM'},{v:S.stats[`b_${name}_events`]||0,l:'Events'},{v:canv+'%',l:'Canvassed'}].map(x=>`
+            <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;">
+              <div style="font-size:20px;font-weight:800;">${x.v}</div>
+              <div style="font-size:10px;opacity:.7;">${x.l}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:10px;">Canvassing Progress</div>
+        <div style="height:10px;background:${C.border};border-radius:5px;overflow:hidden;margin-bottom:6px;">
+          <div style="height:100%;width:${canv}%;border-radius:5px;background:linear-gradient(90deg,${C.teal},${C.info});"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:${C.muted};">
+          <span>${canv}% contacted</span>
+          <span style="color:${canv>80?C.success:C.gold};font-weight:700;">${canv>80?'On Track ✓':'In Progress'}</span>
+        </div>
+      </div>
+      ${bv.length>0?`
+      <div class="card">
+        <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:10px;">Support Breakdown</div>
+        ${Object.entries(counts).map(([s,v])=>{
+          const pct=bv.length>0?((v/bv.length)*100).toFixed(0):0;
+          return `<div style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+              <span style="color:${SC[s]};font-weight:600;">${s}</span>
+              <span style="color:${C.muted};">${v} (${pct}%)</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${SC[s]};"></div></div>
+          </div>`;
+        }).join('')}
+      </div>`:''}
+      <div class="card">
+        <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:10px;">Recent Voters (${bv.length} total)</div>
+        ${bv.slice(0,6).map(v=>`
+          <div onclick="openVoterDetail('${v.id}')" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid ${C.border};cursor:pointer;">
+            <span style="font-size:18px;">${v.gender==='Female'?'👩':'👨'}</span>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:600;color:${C.text};">${v.firstName} ${v.lastName}</div>
+              <div style="font-size:11px;color:${C.muted};">${v.occupation} · ${v.birthday?calcAge(v.birthday):v.age}y${v.birthday?' 🎂':''}</div>
+            </div>
+            <span class="badge" style="background:${SC[v.support]||C.muted}22;color:${SC[v.support]||C.muted};">${v.support}</span>
+          </div>`).join('')}
+        ${bv.length===0?`<div style="font-size:13px;color:${C.muted};text-align:center;padding:12px;">No voters recorded yet.</div>`:''}
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div class="tab-content">
+    <div style="font-size:12px;color:${C.muted};margin-bottom:12px;">${BARANGAYS.length} barangays · Tubigon Municipality</div>
+    ${BARANGAYS.map(name=>{
+      const cnt=S.stats[`b_${name}_count`]||0;
+      const canv=S.stats[`b_${name}_canvassed`]||Math.floor(55+(name.length*9)%40);
+      return `
+      <div onclick="S.selectedBarangay='${name}';render()" style="background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:9px;box-shadow:0 2px 10px rgba(15,45,94,0.07);cursor:pointer;display:flex;align-items:center;gap:12px;">
+        <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,${C.navy}18,${C.teal}18);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🏘️</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:14px;color:${C.text};">Brgy. ${name}</div>
+          <div style="font-size:11px;color:${C.muted};margin-bottom:5px;">${cnt} voters in CRM</div>
+          <div style="height:4px;background:${C.border};border-radius:2px;"><div style="height:100%;width:${canv}%;border-radius:2px;background:${canv>80?C.success:C.teal};"></div></div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-weight:800;color:${canv>80?C.success:C.gold};font-size:14px;">${canv}%</div>
+          <div style="color:${C.muted};font-size:10px;">canvassed</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+/* ════════════════════════════════════════════════════
+   RENDER — FEED TAB
+   ════════════════════════════════════════════════════ */
+function renderFeed(){
+  const TC={announcement:C.danger,event:C.info,poll:'#8b5cf6',update:C.success};
+  const TI={announcement:'📢',event:'📅',poll:'📊',update:'✅'};
+  return `
+  <div class="tab-content">
+    ${canWrite()?`
+    <div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:${C.navy}18;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${isAdmin()?'🛡️':'📋'}</div>
+        <input id="post-inp" placeholder="Write an announcement or update..."
+          style="flex:1;padding:10px 13px;border-radius:10px;border:1px solid ${C.border};font-size:13px;outline:none;font-family:'Outfit',sans-serif;"/>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        ${['announcement','event','update'].map(t=>`<button onclick="doPost('${t}')" style="padding:6px 12px;border-radius:20px;border:1px solid ${TC[t]};background:${TC[t]}15;font-size:11px;cursor:pointer;color:${TC[t]};font-family:'Outfit',sans-serif;font-weight:600;">${TI[t]} ${t.charAt(0).toUpperCase()+t.slice(1)}</button>`).join('')}
+      </div>
+    </div>`:''}
+
+    ${S.feed.length===0?`
+    <div style="text-align:center;padding:50px 20px;color:${C.muted};">
+      <div style="font-size:44px;margin-bottom:14px;">📢</div>
+      <div style="font-size:15px;font-weight:600;color:${C.text};">No posts yet</div>
+    </div>`:''}
+
+    ${S.feed.map(item=>{
+      const tclr=TC[item.type]||C.navy;
+      const uid=S.user?.uid;
+      const liked=Array.isArray(item.likes)&&item.likes.includes(uid);
+      const lcount=Array.isArray(item.likes)?item.likes.length:(item.likes||0);
+      const hasVoted=Array.isArray(item.pollVoters)&&item.pollVoters.includes(uid);
+      const votes=Array.isArray(item.votes)?item.votes:[];
+      const vTotal=votes.reduce((a,b)=>a+b,0)||1;
+      const tstr=item.createdAt?.toDate?timeAgo(item.createdAt.toDate()):'just now';
+      return `
+      <div class="card">
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
+          <div style="width:38px;height:38px;border-radius:10px;background:${tclr}18;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${TI[item.type]||'📌'}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:13px;color:${C.text};">${item.author}</div>
+            <div style="font-size:11px;color:${C.muted};">${item.barangay} · ${tstr}</div>
+          </div>
+          <span class="badge" style="background:${tclr}22;color:${tclr};">${item.type}</span>
+        </div>
+        <div style="font-size:13px;color:${C.text};line-height:1.55;margin-bottom:${item.options?'10px':'0'};">${item.content}</div>
+        ${item.options?`
+        <div style="margin-top:4px;">
+          ${item.options.map((opt,idx)=>{
+            const v=votes[idx]||0;
+            const pct=Math.round(v/vTotal*100);
+            return `
+            <button onclick="castVote('${item.id}',${idx})" ${hasVoted?'disabled':''} style="display:block;width:100%;text-align:left;padding:10px 13px;border-radius:10px;margin-bottom:6px;border:2px solid ${C.border};background:transparent;color:${C.text};font-size:13px;cursor:${hasVoted?'default':'pointer'};font-family:'Outfit',sans-serif;position:relative;overflow:hidden;">
+              ${hasVoted?`<div style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:${tclr}12;z-index:0;border-radius:9px;"></div>`:''}
+              <span style="position:relative;z-index:1;">${opt}</span>
+              ${hasVoted?`<span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:${C.muted};font-weight:700;z-index:1;">${pct}%</span>`:''}
+            </button>`;
+          }).join('')}
+          ${hasVoted?`<div style="font-size:11px;color:${C.muted};text-align:center;margin-top:4px;">${vTotal} votes total</div>`:''}
+        </div>`:''}
+        <div style="display:flex;gap:16px;padding-top:10px;margin-top:10px;border-top:1px solid ${C.border};">
+          <button class="feed-btn" onclick="toggleLike('${item.id}')" style="color:${liked?'#e11d48':C.muted};">${liked?'❤️':'🤍'} ${lcount}</button>
+          <button class="feed-btn">💬 ${item.comments||0}</button>
+          <button class="feed-btn">🔗 Share</button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+async function doPost(type){
+  const inp=document.getElementById('post-inp');
+  if(!inp?.value.trim()) return;
+  await postFeed(inp.value,type);
+  inp.value='';
+}
+
+/* ════════════════════════════════════════════════════
+   RENDER — ADMIN TAB
+   ════════════════════════════════════════════════════ */
+function renderAdmin(){
+  const sec=S.adminSec;
+  return `
+  <div class="tab-content">
+    <div class="pill-tabs">
+      ${['overview','users','reports','settings'].map(s=>`
+        <button class="pill-tab" onclick="S.adminSec='${s}';render()" style="background:${sec===s?C.navy:'#fff'};color:${sec===s?'#fff':C.muted};box-shadow:${sec===s?'none':'0 1px 4px rgba(0,0,0,0.08)'};">${s.charAt(0).toUpperCase()+s.slice(1)}</button>`).join('')}
+    </div>
+
+    ${sec==='overview'?`
+    <div class="stat-grid">
+      ${sc('📁','Voters in CRM',S.voters.length.toString(),C.navy)}
+      ${sc('👤','System Users',S.systemUsers.length.toString(),C.teal)}
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:10px;">System Status</div>
+      ${[{l:'Database',v:'✅ Firebase Firestore'},{l:'Auth',v:'✅ Email / Password'},
+         {l:'Offline Mode',v:'✅ Active'},{l:'Encryption',v:'✅ TLS + AES-256'},
+         {l:'Logged in as',v:S.user?.email||'—'},{l:'Role',v:S.profile?.role||'—'},
+      ].map(x=>`
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid ${C.border};">
+          <span style="font-size:13px;color:${C.text};">${x.l}</span>
+          <span style="font-size:13px;font-weight:700;color:${C.navy};">${x.v}</span>
+        </div>`).join('')}
+    </div>`:''}
+
+    ${sec==='users'?`
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;color:${C.text};">System Users</div>
+        <button onclick="openAddUser()" style="padding:6px 13px;border-radius:20px;border:none;background:${C.gold}22;color:${C.navy};font-size:11px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;">＋ Add User</button>
+      </div>
+      ${S.systemUsers.length===0?`<div style="font-size:13px;color:${C.muted};text-align:center;padding:20px;">No users yet.</div>`:''}
+      ${S.systemUsers.map(u=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid ${C.border};">
+          <div style="width:36px;height:36px;border-radius:10px;background:${C.navy}15;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">${u.role==='admin'?'🛡️':u.role==='coordinator'?'📋':'🤝'}</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:600;color:${C.text};">${u.name||u.email}</div>
+            <div style="font-size:11px;color:${C.muted};">${u.role}${u.barangay?' · '+u.barangay:''}</div>
+          </div>
+          <span class="badge" style="background:${u.active!==false?C.success:C.muted}22;color:${u.active!==false?C.success:C.muted};">${u.active!==false?'active':'inactive'}</span>
+        </div>`).join('')}
+    </div>
+    <div class="card" style="background:${C.navy}06;border:1px solid ${C.border};">
+      <div style="font-size:12px;color:${C.muted};line-height:1.7;">
+        <strong style="color:${C.navy};">Coordinator access:</strong> Each coordinator can only view, add, and edit voters in their assigned barangay. They cannot access other barangays.
+      </div>
+    </div>`:''}
+
+    ${sec==='reports'?`
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:4px;">Export Reports</div>
+      <div style="font-size:12px;color:${C.muted};margin-bottom:14px;">Downloads as CSV — opens in Excel</div>
+      ${S.success?`<div class="ok-box">${S.success}</div>`:''}
+      ${S.error?`<div class="err-box">${S.error}</div>`:''}
+      ${[{icon:'📋',label:'Full Voter Registry',desc:'All fields including birthday & notes',action:'exportVotersCSV()'},
+         {icon:'📊',label:'Support Analysis',desc:'Count by support level',action:'exportSupportCSV()'},
+         {icon:'🏘️',label:'Barangay Summary',desc:'Voter count per barangay',action:'exportBarangayCSV()'},
+      ].map((r,i,a)=>`
+        <button onclick="${r.action}" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 0;background:transparent;border:none;border-bottom:${i<a.length-1?'1px solid '+C.border:'none'};cursor:pointer;text-align:left;">
+          <span style="font-size:22px;flex-shrink:0;">${r.icon}</span>
+          <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:${C.text};">${r.label}</div><div style="font-size:11px;color:${C.muted};">${r.desc}</div></div>
+          <span style="font-size:18px;color:${C.gold};">⬇</span>
+        </button>`).join('')}
+    </div>`:''}
+
+    ${sec==='settings'?`
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:12px;">System Configuration</div>
+      ${[{k:'vol',l:'Allow Volunteer Edits',d:'Let volunteers edit voter records'},
+         {k:'email',l:'Email Notifications',d:'Send updates via email'},
+         {k:'sms',l:'SMS Alerts',d:'Send alerts via SMS'},
+         {k:'tfa',l:'Two-Factor Authentication',d:'Require 2FA for admin logins'},
+         {k:'enc',l:'Data Encryption',d:'AES-256 (always on)'},
+      ].map(s=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid ${C.border};">
+          <div><div style="font-size:13px;color:${C.text};font-weight:500;">${s.l}</div><div style="font-size:11px;color:${C.muted};">${s.d}</div></div>
+          <div class="toggle" style="background:${S.toggles[s.k]?C.navy:C.border};margin-left:12px;" onclick="S.toggles['${s.k}']=!S.toggles['${s.k}'];render()">
+            <div class="toggle-dot" style="left:${S.toggles[s.k]?23:3}px;"></div>
+          </div>
+        </div>`).join('')}
+    </div>`:''}
+  </div>`;
+}
+
+/* ════════════════════════════════════════════════════
+   MODALS
+   ════════════════════════════════════════════════════ */
+function renderModal(){
+  if(!S.modal) return '';
+  if(S.modal.type==='voterDetail') return renderVoterModal();
+  if(S.modal.type==='addVoter')    return renderAddVoterModal();
+  if(S.modal.type==='addUser')     return renderAddUserModal();
+  return '';
+}
+
+/* ── VOTER DETAIL MODAL ── */
+function renderVoterModal(){
+  const v=S.modal.data;
+  const sclr=SC[v.support]||C.muted;
+  const role=S.profile?.role;
+  const age=v.birthday?calcAge(v.birthday):v.age;
+  const ag=ageGroup(age);
+  // Coordinator can write only if it's their barangay
+  const canEdit=isAdmin()||(isCoord()&&v.barangay===coordBrgy());
+  const inp=`padding:11px 13px;border-radius:10px;border:2px solid ${C.border};font-size:13px;outline:none;font-family:'Outfit',sans-serif;width:100%;box-sizing:border-box;`;
+  return `
+  <div class="modal-overlay" onclick="if(event.target===this){S.modal=null;render();}">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+        <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,${C.navy}22,${C.teal}22);display:flex;align-items:center;justify-content:center;font-size:30px;">${v.gender==='Female'?'👩':'👨'}</div>
+        <div>
+          <div style="font-size:19px;font-weight:800;color:${C.text};">${v.firstName} ${v.lastName}</div>
+          <div style="font-size:11px;color:${C.muted};">ID: ${v.id?.slice(0,8).toUpperCase()}</div>
+        </div>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-cell"><div class="info-label">🏘️ Barangay</div><div class="info-val">${v.barangay}</div></div>
+        <div class="info-cell"><div class="info-label">💼 Occupation</div><div class="info-val">${v.occupation}</div></div>
+        <div class="info-cell"><div class="info-label">🎂 Birthday</div><div class="info-val">${fmtBday(v.birthday)}</div></div>
+        <div class="info-cell"><div class="info-label">🎂 Age</div><div class="info-val">${age||'?'} years old</div></div>
+        <div class="info-cell"><div class="info-label">👤 Gender</div><div class="info-val">${v.gender}</div></div>
+        <div class="info-cell"><div class="info-label">📊 Age Group</div><div class="info-val">${ag}</div></div>
+        <div class="info-cell" style="grid-column:span 2"><div class="info-label">📱 Contact</div><div class="info-val">${v.contact||'Not provided'}</div></div>
+      </div>
+
+      <!-- SUPPORT LEVEL -->
+      <div style="background:${sclr}15;border-radius:12px;padding:13px 16px;border:1px solid ${sclr}30;margin-bottom:12px;">
+        <div style="font-size:11px;color:${C.muted};margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Support Level</div>
+        <div style="font-size:18px;font-weight:800;color:${sclr};margin-bottom:${canEdit?'10px':'0'};">${v.support}</div>
+        ${canEdit?`
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${['Strong','Leaning','Undecided','Opposition'].map(s=>`
+            <button onclick="updateSupport('${v.id}','${s}')"
+              style="padding:6px 12px;border-radius:20px;border:2px solid ${s===v.support?SC[s]:C.border};background:${s===v.support?SC[s]+'22':'transparent'};color:${s===v.support?SC[s]:C.muted};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">${s}</button>`).join('')}
+        </div>`:''}
+      </div>
+
+      <!-- NOTES -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;color:${C.muted};margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">📝 Field Notes / Canvassing Notes</div>
+        ${canEdit?`
+        <textarea id="voter-notes" class="inp" style="resize:vertical;min-height:90px;line-height:1.5;" placeholder="Add notes about this voter — canvassing observations, concerns, commitments, etc.">${v.notes||''}</textarea>
+        <button onclick="saveNotes('${v.id}',document.getElementById('voter-notes').value)" style="margin-top:8px;width:100%;padding:10px;border-radius:10px;border:none;background:${C.navy};color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;">Save Notes ✓</button>
+        ${S.success?`<div style="color:${C.success};font-size:12px;text-align:center;margin-top:6px;">${S.success}</div>`:''}`:`
+        <div style="background:${C.bg};border-radius:10px;padding:12px;font-size:13px;color:${v.notes?C.text:C.muted};line-height:1.5;min-height:60px;">${v.notes||'No notes recorded.'}</div>`}
+      </div>
+
+      <button style="width:100%;padding:13px;border-radius:12px;border:2px solid ${C.border};background:transparent;color:${C.muted};font-size:13px;cursor:pointer;font-family:'Outfit',sans-serif;" onclick="S.modal=null;render()">Close</button>
+    </div>
+  </div>`;
+}
+
+/* ── ADD VOTER MODAL ── */
+function renderAddVoterModal(){
+  const d=S.modal.data||{};
+  const inp=`padding:11px 13px;border-radius:10px;border:2px solid ${C.border};font-size:13px;outline:none;font-family:'Outfit',sans-serif;width:100%;box-sizing:border-box;`;
+  const lbl=`font-size:10px;color:${C.muted};margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;display:block;`;
+  // Coordinator is locked to their barangay
+  const brgyField=isCoord()
+    ?`<div class="info-cell" style="margin-bottom:10px;"><div class="info-label">🏘️ Barangay (locked)</div><div class="info-val">${coordBrgy()}</div></div>`
+    :`<div><label style="${lbl}">Barangay</label><select id="nv-brgy" style="${inp}">${BARANGAYS.map(b=>`<option ${d.barangay===b?'selected':''}>${b}</option>`).join('')}</select></div>`;
+  return `
+  <div class="modal-overlay" onclick="if(event.target===this){S.modal=null;S.error='';render();}">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div style="font-size:18px;font-weight:800;color:${C.text};margin-bottom:6px;">➕ Add Voter Record</div>
+      <div style="font-size:12px;color:${C.muted};margin-bottom:18px;">Birthday auto-calculates age and age group.</div>
+      ${S.error?`<div class="err-box">${S.error}</div>`:''}
+      <div style="display:flex;flex-direction:column;gap:13px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><label style="${lbl}">First Name *</label><input id="nv-fn" style="${inp}" placeholder="First name" value="${d.firstName||''}"/></div>
+          <div><label style="${lbl}">Last Name *</label><input id="nv-ln" style="${inp}" placeholder="Last name" value="${d.lastName||''}"/></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label style="${lbl}">🎂 Birthday *</label>
+            <input id="nv-bday" type="date" style="${inp}" value="${d.birthday||''}"/>
+            <div id="age-preview" style="font-size:11px;color:${C.teal};margin-top:4px;min-height:16px;"></div>
+          </div>
+          <div><label style="${lbl}">Gender</label><select id="nv-gen" style="${inp}"><option ${d.gender!=='Female'?'selected':''}>Male</option><option ${d.gender==='Female'?'selected':''}>Female</option></select></div>
+        </div>
+        ${brgyField}
+        <div><label style="${lbl}">Occupation</label><select id="nv-occ" style="${inp}">${OCCUPATIONS.map(o=>`<option ${d.occupation===o?'selected':''}>${o}</option>`).join('')}</select></div>
+        <div><label style="${lbl}">Contact (optional)</label><input id="nv-con" type="tel" style="${inp}" placeholder="09XXXXXXXXX" value="${d.contact||''}"/></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button style="flex:1;padding:13px;border-radius:12px;border:2px solid ${C.border};background:transparent;color:${C.muted};font-size:13px;cursor:pointer;font-family:'Outfit',sans-serif;" onclick="S.modal=null;S.error='';render()">Cancel</button>
+        <button onclick="saveNewVoter()" style="flex:2;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,${C.gold},#f5c842);color:${C.navy};font-size:13px;font-weight:800;cursor:pointer;font-family:'Outfit',sans-serif;">Save Record ✓</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ── ADD USER MODAL ── */
+function renderAddUserModal(){
+  const inp=`padding:11px 13px;border-radius:10px;border:2px solid ${C.border};font-size:13px;outline:none;font-family:'Outfit',sans-serif;width:100%;box-sizing:border-box;`;
+  const lbl=`font-size:10px;color:${C.muted};margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;display:block;`;
+  return `
+  <div class="modal-overlay" onclick="if(event.target===this){S.modal=null;S.error='';render();}">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div style="font-size:18px;font-weight:800;color:${C.text};margin-bottom:6px;">➕ Add System User</div>
+      <div style="font-size:12px;color:${C.muted};line-height:1.5;margin-bottom:18px;">First create in Firebase Console → Authentication → Add User. Then paste the UID here.</div>
+      ${S.error?`<div class="err-box">${S.error}</div>`:''}
+      <div style="display:flex;flex-direction:column;gap:13px;">
+        <div><label style="${lbl}">Full Name *</label><input id="nu-name" style="${inp}" placeholder="e.g. Maria Santos"/></div>
+        <div><label style="${lbl}">Email *</label><input id="nu-email" type="email" style="${inp}" placeholder="coordinator@email.com"/></div>
+        <div><label style="${lbl}">Firebase UID *</label><input id="nu-uid" style="${inp}" placeholder="From Firebase Console → Authentication"/></div>
+        <div><label style="${lbl}">Role</label><select id="nu-role" style="${inp}"><option>coordinator</option><option>volunteer</option><option>admin</option></select></div>
+        <div><label style="${lbl}">Assigned Barangay (for coordinators)</label><select id="nu-brgy" style="${inp}"><option value="">— None —</option>${BARANGAYS.map(b=>`<option>${b}</option>`).join('')}</select></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button style="flex:1;padding:13px;border-radius:12px;border:2px solid ${C.border};background:transparent;color:${C.muted};font-size:13px;cursor:pointer;font-family:'Outfit',sans-serif;" onclick="S.modal=null;S.error='';render()">Cancel</button>
+        <button onclick="saveNewUser()" style="flex:2;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,${C.navy},${C.teal});color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:'Outfit',sans-serif;">Save User ✓</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ════════════════════════════════════════════════════
+   ACTIONS
+   ════════════════════════════════════════════════════ */
+function setTab(t){ S.tab=t; S.modal=null; S.selectedBarangay=null; S.error=''; S.success=''; render(); }
+function resubVoters(){ render(); setTimeout(()=>{ S.unsubs.forEach(u=>u()); S.unsubs=[]; subscribeVoters(); subscribeFeed(); subscribeStats(); subscribeUsers(); },50); }
+
+function openVoterDetail(id){
+  const v=S.voters.find(x=>x.id===id);
+  if(v){ S.modal={type:'voterDetail',data:{...v}}; S.success=''; render(); }
+}
+
+function openAddVoter(){
+  const brgy=isCoord()?coordBrgy():'Centro';
+  S.modal={type:'addVoter',data:{barangay:brgy,gender:'Male',occupation:'Farmer'}};
+  S.error=''; render();
+  // Wire up birthday preview after render
+  setTimeout(()=>{
+    const bdayInp=document.getElementById('nv-bday');
+    if(bdayInp) bdayInp.addEventListener('change',()=>{
+      const a=calcAge(bdayInp.value);
+      const prev=document.getElementById('age-preview');
+      if(prev&&a!==null) prev.textContent=`→ ${a} years old · ${ageGroup(a)}`;
+    });
+  },100);
+}
+
+function openAddUser(){ S.modal={type:'addUser',data:{}}; S.error=''; render(); }
+
+async function saveNewVoter(){
+  const fn=document.getElementById('nv-fn')?.value.trim();
+  const ln=document.getElementById('nv-ln')?.value.trim();
+  const bday=document.getElementById('nv-bday')?.value;
+  const gen=document.getElementById('nv-gen')?.value;
+  const brgy=isCoord()?coordBrgy():document.getElementById('nv-brgy')?.value;
+  const occ=document.getElementById('nv-occ')?.value;
+  const con=document.getElementById('nv-con')?.value.trim();
+  if(!fn||!ln){ S.error='First name and last name are required.'; render(); return; }
+  if(!bday){ S.error='Birthday is required to calculate age and age group.'; render(); return; }
+  const age=calcAge(bday);
+  if(age<18){ S.error='Voter must be at least 18 years old.'; render(); return; }
+  try{
+    await addVoter({firstName:fn,lastName:ln,birthday:bday,gender:gen,barangay:brgy,occupation:occ,contact:con});
+    S.modal=null; S.error=''; render();
+  }catch(e){ S.error='Failed to save: '+e.message; render(); }
+}
+
+async function saveNewUser(){
+  const name=document.getElementById('nu-name')?.value.trim();
+  const email=document.getElementById('nu-email')?.value.trim();
+  const uid=document.getElementById('nu-uid')?.value.trim();
+  const role=document.getElementById('nu-role')?.value;
+  const brgy=document.getElementById('nu-brgy')?.value;
+  if(!name||!email||!uid){ S.error='Name, email, and Firebase UID are required.'; render(); return; }
+  try{
+    await db.collection('users').doc(uid).set({name,email,role,barangay:brgy,active:true});
+    S.modal=null; S.error=''; render();
+  }catch(e){ S.error='Failed: '+e.message; render(); }
+}
+
+/* ════════════════════════════════════════════════════
+   MAIN RENDER
+   ════════════════════════════════════════════════════ */
+function renderMain(){
+  let body='';
+  if(S.tab==='dashboard') body=renderDashboard();
+  else if(S.tab==='voters')    body=renderVoters();
+  else if(S.tab==='barangays') body=renderBarangays();
+  else if(S.tab==='feed')      body=renderFeed();
+  else if(S.tab==='admin')     body=renderAdmin();
+  return `${renderHeader()}<div class="content">${body}</div>${renderNav()}${renderModal()}`;
+}
+<!-- FULL UPGRADE: + SIMULATION ENGINE + COORDINATOR SCORING -->
+
+<script>
+
+/* =========================
+   EXISTING MODELS (kept)
+   ========================= */
+const SUPPORT_SCORE = {
+  "Strong": 1,
+  "Leaning": 0.5,
+  "Undecided": 0,
+  "Opposition": -1
+};
+
+function turnoutProbability(v){
+  if(v.age >= 50) return 0.8;
+  if(v.age >= 30) return 0.7;
+  return 0.6;
+}
+
+function influenceScore(v){
+  let score = 1;
+  if(v.occupation && v.occupation.toLowerCase().includes('leader')) score += 1;
+  if(v.notes && v.notes.toLowerCase().includes('influencer')) score += 1;
+  return score;
+}
+
+/* =========================
+   SIMULATION ENGINE
+   ========================= */
+function simulateConversion(barangay, convertCount){
+  const voters = S.voters.filter(v=>v.barangay===barangay);
+
+  let simulated = voters.map(v=>{
+    let base = v.voting?.score ?? SUPPORT_SCORE[v.support] ?? 0;
+    return {
+      ...v,
+      simScore: base
+    };
+  });
+
+  // sort weakest first
+  simulated.sort((a,b)=>a.simScore - b.simScore);
+
+  for(let i=0;i<convertCount && i<simulated.length;i++){
+    simulated[i].simScore = 1; // convert to strong
+  }
+
+  let total = 0;
+
+  simulated.forEach(v=>{
+    total += v.simScore * turnoutProbability(v) * influenceScore(v);
+  });
+
+  const max = simulated.length * 1.5;
+  const min = simulated.length * -1.5;
+
+  const normalized = (total - min)/(max-min);
+
+  return Math.round(normalized * 100);
+}
+
+/* =========================
+   COORDINATOR SCORING
+   ========================= */
+function computeCoordinatorScores(){
+  const scores = {};
+
+  S.voters.forEach(v=>{
+    if(!v.voting?.history) return;
+
+    v.voting.history.forEach(h=>{
+      if(!h.by) return;
+
+      if(!scores[h.by]){
+        scores[h.by] = {
+          conversions: 0,
+          total: 0
+        };
+      }
+
+      scores[h.by].total++;
+
+      if(h.value === "Undecided" || h.value === "Leaning"){
+        scores[h.by].conversions++;
+      }
+    });
+  });
+
+  return Object.entries(scores).map(([uid,data])=>({
+    uid,
+    efficiency: data.total ? (data.conversions / data.total) : 0,
+    conversions: data.conversions
+  })).sort((a,b)=>b.efficiency - a.efficiency);
+}
+
+/* =========================
+   RENDER SIMULATION PANEL
+   ========================= */
+function renderSimulation(){
+  const container = document.getElementById('simulation');
+  if(!container) return;
+
+  const barangays = [...new Set(S.voters.map(v=>v.barangay))];
+
+  container.innerHTML = barangays.map(b=>{
+    const result10 = simulateConversion(b,10);
+    const result20 = simulateConversion(b,20);
+
+    return `
+      <div style="padding:10px;border:1px solid #ddd;margin:6px;border-radius:8px;">
+        <b>${b}</b><br>
+        +10 voters → ${result10}%<br>
+        +20 voters → ${result20}%
+      </div>
+    `;
+  }).join('');
+}
+
+/* =========================
+   RENDER COORDINATORS
+   ========================= */
+function renderCoordinators(){
+  const container = document.getElementById('coordinators');
+  if(!container) return;
+
+  const data = computeCoordinatorScores();
+
+  container.innerHTML = data.map(c=>`
+    <div style="padding:8px;border-bottom:1px solid #ddd;">
+      UID: ${c.uid}<br>
+      Efficiency: ${(c.efficiency*100).toFixed(1)}%<br>
+      Conversions: ${c.conversions}
+    </div>
+  `).join('');
+}
+
+/* =========================
+   HOOK INTO MAIN RENDER
+   ========================= */
+// renderSimulation();
+// renderCoordinators();
+
+/* =========================
+   UI SECTIONS
+   ========================= */
+// <div>
+//   <h3>Scenario Simulation</h3>
+//   <div id="simulation"></div>
+// </div>
+
+// <div>
+//   <h3>Coordinator Performance</h3>
+//   <div id="coordinators"></div>
+// </div>
+
+</script>
+
+/* ════════════════════════════════════════════════════
+   FIREBASE AUTH STATE LISTENER
+   ════════════════════════════════════════════════════ */
+auth.onAuthStateChanged(async user=>{
+  if(user){
+    try{
+      let snap=await db.collection('users').doc(user.uid).get();
+      if(!snap.exists){
+        const all=await db.collection('users').limit(1).get();
+        if(all.empty){
+          await db.collection('users').doc(user.uid).set({
+            name:'Administrator',email:user.email,role:'admin',barangay:'',active:true
+          });
+          snap=await db.collection('users').doc(user.uid).get();
+        } else {
+          await auth.signOut();
+          set({loginLoading:false,loginError:'Account not found. Contact your admin.',screen:'login'});
+          return;
+        }
+      }
+      const profile=snap.data();
+      if(profile.active===false){
+        await auth.signOut();
+        set({loginLoading:false,loginError:'Your account has been deactivated.',screen:'login'});
+        return;
+      }
+      S.user=user; S.profile=profile; S.screen='main'; S.loginLoading=false;
+      subscribeVoters();
+      subscribeFeed();
+      subscribeStats();
+      subscribeUsers();
+      render();
+    }catch(e){
+      await auth.signOut();
+      set({loginLoading:false,loginError:'Error: '+e.message,screen:'login'});
+    }
+  } else {
+    set({screen:'login',loginLoading:false});
+  }
+});
+
+render();
+</script>
+</body>
+</html>
