@@ -61,6 +61,9 @@
 /* ════════════════════════════════════════════════════
    ⚠️  PASTE YOUR FIREBASE CONFIG HERE
    ════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════
+   YOUR FIREBASE CONFIG — paste your values below
+   ════════════════════════════════════════════════════ */
 const FIREBASE_CONFIG = {
   apiKey:            "AIzaSyDAiY7Mc4tpm9MipGrnqSa4iNbgoAG-upk",
   authDomain:        "tubigon-crm-db552.firebaseapp.com",
@@ -140,7 +143,7 @@ let S = {
   tab:'dashboard',
   voters:[], feed:[], systemUsers:[],
   stats:{},
-  search:'', filters:{gender:'',ageGroup:'',occupation:'',barangay:''},
+  search:'', filters:{gender:'',ageGroup:'',occupation:'',barangay:'',support:'Undecided'},
   filterOpen:false,
   selectedBarangay:null,
   modal:null,
@@ -187,17 +190,16 @@ async function doLogout(){
    ════════════════════════════════════════════════════ */
 function buildQuery(){
   let q=db.collection('voters').orderBy('lastName');
-  // Coordinators are LOCKED to their barangay — cannot see others
   if(isCoord()){
     q=q.where('barangay','==',coordBrgy());
   } else {
-    // Admin can filter by any barangay
     if(S.filters.barangay) q=q.where('barangay','==',S.filters.barangay);
   }
   if(S.filters.gender)     q=q.where('gender','==',S.filters.gender);
   if(S.filters.ageGroup)   q=q.where('ageGroup','==',S.filters.ageGroup);
   if(S.filters.occupation) q=q.where('occupation','==',S.filters.occupation);
-  return q.limit(80);
+  if(S.filters.support)    q=q.where('support','==',S.filters.support);
+  return q.limit(100);
 }
 
 function subscribeVoters(){
@@ -476,23 +478,23 @@ function renderDashboard(){
   const strong=st.support_strong||0, leaning=st.support_leaning||0,
         undecided=st.support_undecided||0, opposition=st.support_opposition||0;
   const supT=strong+leaning+undecided+opposition||1;
+  const genT=male+female||1;
+  const ageT=youth+adult+senior||1;
   const sp=v=>((v/supT)*100).toFixed(0);
+  const gp=v=>((v/genT)*100).toFixed(1);
+  const ap=v=>((v/ageT)*100).toFixed(1);
   const occs=[
     {k:'o_Farmer',l:'Farmer'},{k:'o_Fisherfolk',l:'Fisherfolk'},
     {k:'o_Senior Citizen',l:'Sr. Citizen'},{k:'o_Driver',l:'Driver'},
     {k:'o_House Helper',l:'House Helper'},{k:'o_Teacher',l:'Teacher'},
+    {k:'o_Others',l:'Others'},
   ];
-  // Coordinator sees their barangay stats only
   const coordNote=isCoord()?`<div class="card" style="background:${C.teal}10;border:1px solid ${C.teal}30;"><div style="font-size:12px;color:${C.teal};font-weight:600;">📍 Showing your barangay: ${coordBrgy()}</div><div style="font-size:11px;color:${C.muted};margin-top:2px;">Global totals visible to Admin only.</div></div>`:'';
+  const syncNote=total===0?`<div class="card" style="background:#fef3c710;border:1px solid #fbbf24;"><div style="font-size:12px;color:#92400e;line-height:1.6;">⚠️ <strong>Stats not yet available.</strong> Run the voter importer to completion to populate the dashboard.</div></div>`:'';
   return `
   <div class="tab-content">
     ${coordNote}
-    <div class="stat-grid">
-      ${sc('🗳️','Voters in CRM',total.toLocaleString(),C.navy)}
-      ${sc('🏘️','Barangays',BARANGAYS.length.toString(),C.teal)}
-      ${sc('💚','Strong Support',strong.toLocaleString(),'#059669',sp(strong)+'% of total')}
-      ${sc('❓','Undecided',undecided.toLocaleString(),'#d97706',sp(undecided)+'% — priority')}
-    </div>
+    ${syncNote}
     <div class="card">
       <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:12px;">Support Distribution</div>
       ${[{l:'Strong',v:strong,c:'#059669'},{l:'Leaning',v:leaning,c:'#3b82f6'},{l:'Undecided',v:undecided,c:'#f59e0b'},{l:'Opposition',v:opposition,c:'#dc2626'}].map(s=>`
@@ -510,16 +512,16 @@ function renderDashboard(){
         <div style="flex:1;text-align:center;">
           <div style="font-size:22px;font-weight:800;color:#e879a8;">${female.toLocaleString()}</div>
           <span class="badge" style="background:#e879a822;color:#e879a8;">Female</span>
-          <div style="font-size:10px;color:${C.muted};margin-top:3px;">${sPct(female)}%</div>
+          <div style="font-size:10px;color:${C.muted};margin-top:3px;">${gp(female)}%</div>
         </div>
         <div style="flex:1;text-align:center;">
           <div style="font-size:22px;font-weight:800;color:${C.info};">${male.toLocaleString()}</div>
           <span class="badge" style="background:${C.info}22;color:${C.info};">Male</span>
-          <div style="font-size:10px;color:${C.muted};margin-top:3px;">${sPct(male)}%</div>
+          <div style="font-size:10px;color:${C.muted};margin-top:3px;">${gp(male)}%</div>
         </div>
       </div>
       <div style="height:8px;border-radius:4px;background:${C.border};overflow:hidden;">
-        <div style="height:100%;width:${total>0?sPct(female):50}%;background:linear-gradient(90deg,#e879a8,#3b82f6);"></div>
+        <div style="height:100%;width:${genT>0?gp(female):50}%;background:linear-gradient(90deg,#e879a8,#3b82f6);"></div>
       </div>
     </div>
     <div class="card">
@@ -529,7 +531,7 @@ function renderDashboard(){
           <div style="flex:1;background:${a.c}15;border-radius:12px;padding:12px;text-align:center;">
             <div style="font-size:20px;font-weight:800;color:${a.c};">${a.v.toLocaleString()}</div>
             <div style="font-size:11px;color:${C.muted};">${a.l}</div>
-            <div style="font-size:10px;color:${a.c};font-weight:600;">${sPct(a.v)}%</div>
+            <div style="font-size:10px;color:${a.c};font-weight:600;">${ap(a.v)}%</div>
           </div>`).join('')}
       </div>
     </div>
@@ -542,7 +544,7 @@ function renderDashboard(){
             <span style="color:${C.text};">${o.l}</span>
             <span style="color:${C.muted};font-weight:600;">${v.toLocaleString()}</span>
           </div>
-          <div class="progress-bar"><div class="progress-fill" style="width:${total>0?((v/total)*100).toFixed(1):0}%;background:hsl(${195+i*28},65%,42%);"></div></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${total>0?Math.min(((v/total)*100),100).toFixed(1):0}%;background:hsl(${195+i*28},65%,42%);"></div></div>
         </div>`;
       }).join('')}
     </div>
@@ -570,6 +572,7 @@ function renderVoters(){
   const hf=Object.values(S.filters).some(Boolean);
   // Filter options — coordinators cannot change barangay filter
   const filterFields=[
+    {k:'support',l:'Support',opts:['','Strong','Leaning','Undecided','Opposition']},
     {k:'gender',l:'Gender',opts:['','Male','Female']},
     {k:'ageGroup',l:'Age Group',opts:['','Youth','Adult','Senior']},
     {k:'occupation',l:'Occupation',opts:['',...OCCUPATIONS]},
@@ -598,13 +601,15 @@ function renderVoters(){
             </select>
           </div>`).join('')}
       </div>
-      ${hf?`<button onclick="S.filters={gender:'',ageGroup:'',occupation:'',barangay:''};resubVoters();" style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid ${C.border};background:transparent;color:${C.danger};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✕ Clear Filters</button>`:''}
+      ${hf?`<button onclick="S.filters={gender:'',ageGroup:'',occupation:'',barangay:'',support:''};resubVoters();" style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid ${C.border};background:transparent;color:${C.danger};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✕ Clear Filters</button>`:''}
     </div>`:''}
 
     <div id="voter-list">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-      <div style="font-size:12px;color:${C.muted};"><strong style="color:${C.navy};">${voters.length}</strong> voters ${S.search?'found':'loaded'}</div>
-      <div style="font-size:11px;color:${C.muted};">${voters.length===80?'Showing first 80':''}</div>
+      <div style="font-size:12px;color:${C.muted};"><strong style="color:${C.navy};">${voters.length}</strong> voters ${S.search?'matching':'loaded'}
+        ${S.filters.support?`<span style="background:${SC[S.filters.support]}22;color:${SC[S.filters.support]};border-radius:10px;padding:1px 8px;font-size:10px;font-weight:700;margin-left:4px;">${S.filters.support}</span>`:''}
+      </div>
+      <div style="font-size:11px;color:${C.muted};">${voters.length===100?'First 100 shown':voters.length===80?'First 80 shown':''}</div>
     </div>
 
     ${voters.map(v=>{
@@ -659,7 +664,7 @@ function renderBarangays(){
     const bv=isCoord()?S.voters:S.voters.filter(v=>v.barangay===name);
     const counts={Strong:0,Leaning:0,Undecided:0,Opposition:0};
     bv.forEach(v=>{if(counts[v.support]!==undefined)counts[v.support]++;});
-    const canv=S.stats[`b_${name}_canvassed`]||Math.floor(55+(name.length*9)%40);
+    const canv=S.stats[`b_${name}_canvassed`]||0;
     const backBtn=isCoord()?'':
       `<button onclick="S.selectedBarangay=null;render()" style="display:flex;align-items:center;gap:6px;margin-bottom:16px;background:transparent;border:none;color:${C.navy};font-size:14px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:700;">← All Barangays</button>`;
     return `
@@ -670,7 +675,7 @@ function renderBarangays(){
         <div style="font-size:22px;font-weight:800;">${name}</div>
         <div style="opacity:.6;font-size:12px;margin-bottom:16px;">Tubigon Municipality, Bohol</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
-          ${[{v:bv.length,l:'In CRM'},{v:S.stats[`b_${name}_events`]||0,l:'Events'},{v:canv+'%',l:'Canvassed'}].map(x=>`
+          ${[{v:(S.stats[`b_${name}_count`]||0).toLocaleString(),l:'Registered'},{v:S.stats[`b_${name}_events`]||0,l:'Events'},{v:canv+'%',l:'Canvassed'}].map(x=>`
             <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;">
               <div style="font-size:20px;font-weight:800;">${x.v}</div>
               <div style="font-size:10px;opacity:.7;">${x.l}</div>
@@ -689,7 +694,8 @@ function renderBarangays(){
       </div>
       ${bv.length>0?`
       <div class="card">
-        <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:10px;">Support Breakdown</div>
+        <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:4px;">Support Breakdown</div>
+        <div style="font-size:11px;color:${C.muted};margin-bottom:10px;">Based on ${bv.length} loaded voters · go to Voters tab for full list</div>
         ${Object.entries(counts).map(([s,v])=>{
           const pct=bv.length>0?((v/bv.length)*100).toFixed(0):0;
           return `<div style="margin-bottom:8px;">
@@ -702,7 +708,8 @@ function renderBarangays(){
         }).join('')}
       </div>`:''}
       <div class="card">
-        <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:10px;">Recent Voters (${bv.length} total)</div>
+        <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:6px;">Recent Voters</div>
+        <div style="font-size:11px;color:${C.muted};margin-bottom:10px;">Showing ${bv.length} loaded · ${(S.stats['b_'+name+'_count']||0).toLocaleString()} total registered</div>
         ${bv.slice(0,6).map(v=>`
           <div onclick="openVoterDetail('${v.id}')" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid ${C.border};cursor:pointer;">
             <span style="font-size:18px;">${v.gender==='Female'?'👩':'👨'}</span>
@@ -722,17 +729,17 @@ function renderBarangays(){
     <div style="font-size:12px;color:${C.muted};margin-bottom:12px;">${BARANGAYS.length} barangays · Tubigon Municipality</div>
     ${BARANGAYS.map(name=>{
       const cnt=S.stats[`b_${name}_count`]||0;
-      const canv=S.stats[`b_${name}_canvassed`]||Math.floor(55+(name.length*9)%40);
+      const canv=parseInt(S.stats[`b_${name}_canvassed`]||0);
       return `
       <div onclick="S.selectedBarangay='${name}';render()" style="background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:9px;box-shadow:0 2px 10px rgba(15,45,94,0.07);cursor:pointer;display:flex;align-items:center;gap:12px;">
         <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,${C.navy}18,${C.teal}18);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🏘️</div>
         <div style="flex:1;min-width:0;">
           <div style="font-weight:700;font-size:14px;color:${C.text};">Brgy. ${name}</div>
-          <div style="font-size:11px;color:${C.muted};margin-bottom:5px;">${cnt} voters in CRM</div>
-          <div style="height:4px;background:${C.border};border-radius:2px;"><div style="height:100%;width:${canv}%;border-radius:2px;background:${canv>80?C.success:C.teal};"></div></div>
+          <div style="font-size:11px;color:${C.muted};margin-bottom:5px;">${cnt.toLocaleString()} registered voters</div>
+          <div style="height:4px;background:${C.border};border-radius:2px;"><div style="height:100%;width:${canv}%;border-radius:2px;background:${canv>80?C.success:canv>0?C.teal:C.border};"></div></div>
         </div>
         <div style="text-align:right;flex-shrink:0;">
-          <div style="font-weight:800;color:${canv>80?C.success:C.gold};font-size:14px;">${canv}%</div>
+          <div style="font-weight:800;color:${canv>80?C.success:canv>0?C.gold:C.muted};font-size:14px;">${canv}%</div>
           <div style="color:${C.muted};font-size:10px;">canvassed</div>
         </div>
       </div>`;
@@ -831,7 +838,7 @@ function renderAdmin(){
 
     ${sec==='overview'?`
     <div class="stat-grid">
-      ${sc('📁','Voters in CRM',S.voters.length.toString(),C.navy)}
+      ${sc('📁','Total Voters in DB',(S.stats.total||0).toLocaleString(),C.navy)}
       ${sc('👤','System Users',S.systemUsers.length.toString(),C.teal)}
     </div>
     <div class="card">
