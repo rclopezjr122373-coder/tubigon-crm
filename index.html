@@ -142,6 +142,7 @@ let S = {
   screen:'login', user:null, profile:null,
   tab:'dashboard',
   voters:[], feed:[], systemUsers:[],
+  barangayVoters:[], // voters loaded for selected barangay detail view
   stats:{},
   search:'', filters:{gender:'',ageGroup:'',occupation:'',barangay:'',support:'Undecided'},
   filterOpen:false,
@@ -189,9 +190,25 @@ async function doLogout(){
    FIRESTORE — VOTERS
    ════════════════════════════════════════════════════ */
 function buildQuery(){
-  let q=db.collection('voters').orderBy('lastName');
+  const brgy = coordBrgy();
+
+  // If coordinator has no barangay assigned, return empty query
+  if(isCoord() && !brgy){
+    return db.collection('voters').limit(0);
+  }
+
+  const hasFilter = isCoord() ||
+    S.filters.barangay || S.filters.gender || S.filters.ageGroup ||
+    S.filters.occupation || S.filters.support;
+
+  // Only use orderBy when no filters active — avoids composite index requirement
+  let q = hasFilter
+    ? db.collection('voters')
+    : db.collection('voters').orderBy('lastName');
+
   if(isCoord()){
-    q=q.where('barangay','==',coordBrgy());
+    // Coordinator locked to their barangay — exact match required
+    q = q.where('barangay','==', brgy);
   } else {
     if(S.filters.barangay) q=q.where('barangay','==',S.filters.barangay);
   }
@@ -204,8 +221,19 @@ function buildQuery(){
 
 function subscribeVoters(){
   const unsub=buildQuery().onSnapshot(snap=>{
-    S.voters=snap.docs.map(d=>({id:d.id,...d.data()})); render();
-  },e=>console.error('voters:',e));
+    const voters=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Sort client-side by lastName since orderBy is skipped when filtering
+    voters.sort((a,b)=>(a.lastName||'').localeCompare(b.lastName||''));
+    S.voters=voters;
+    render();
+  },e=>{
+    console.error('voters:',e);
+    // If index error, show message
+    if(e.code==='failed-precondition'){
+      S.error='Filter requires a Firestore index. Try fewer filters or contact admin.';
+      render();
+    }
+  });
   S.unsubs.push(unsub);
 }
 
@@ -312,6 +340,22 @@ function subscribeStats(){
 /* ════════════════════════════════════════════════════
    FIRESTORE — FEED
    ════════════════════════════════════════════════════ */
+async function loadBarangayVoters(name){
+  S.barangayVoters = [];
+  render(); // show loading state
+  try {
+    const snap = await db.collection('voters')
+      .where('barangay','==',name)
+      .limit(20)
+      .get();
+    S.barangayVoters = snap.docs.map(d=>({id:d.id,...d.data()}));
+    S.barangayVoters.sort((a,b)=>(a.lastName||'').localeCompare(b.lastName||''));
+    render();
+  } catch(e) {
+    console.error('loadBarangayVoters:',e);
+  }
+}
+
 function subscribeFeed(){
   const unsub=db.collection('feed').orderBy('createdAt','desc').limit(25)
     .onSnapshot(snap=>{ S.feed=snap.docs.map(d=>({id:d.id,...d.data()})); render(); });
@@ -362,6 +406,53 @@ function subscribeUsers(){
 /* ════════════════════════════════════════════════════
    EXPORT CSV
    ════════════════════════════════════════════════════ */
+async function resetAllSupport(){
+  if(!confirm('Reset ALL voters to Undecided?\n\nThis cannot be undone. The COMELEC categories (*, C, B) will be cleared.\n\nPress OK to confirm.')) return;
+  set({success:'',error:''});
+
+  try {
+    // Get all voters in batches of 100
+    let lastDoc = null;
+    let total = 0;
+    let batchCount = 0;
+
+    while(true){
+      let q = db.collection('voters').limit(100);
+      if(lastDoc) q = q.startAfter(lastDoc);
+      const snap = await q.get();
+      if(snap.empty) break;
+
+      const batch = db.batch();
+      snap.docs.forEach(d=>{
+        batch.update(d.ref, {support:'Undecided'});
+      });
+      await batch.commit();
+
+      total += snap.docs.length;
+      lastDoc = snap.docs[snap.docs.length-1];
+      batchCount++;
+
+      // Update stats
+      set({success:`Resetting... ${total.toLocaleString()} voters updated`});
+
+      if(snap.docs.length < 100) break;
+      await new Promise(r=>setTimeout(r,150));
+    }
+
+    // Reset support stats
+    await db.collection('config').doc('stats').update({
+      support_strong:    0,
+      support_leaning:   0,
+      support_undecided: total,
+      support_opposition:0,
+    });
+
+    set({success:`✓ Done — ${total.toLocaleString()} voters reset to Undecided`});
+  } catch(e){
+    set({error:'Reset failed: '+e.message});
+  }
+}
+
 async function exportVotersCSV(){
   set({success:'',error:''});
   try{
@@ -580,7 +671,12 @@ function renderVoters(){
   ];
   return `
   <div class="tab-content">
-    ${isCoord()?`<div style="margin-bottom:10px;"><span class="coord-tag">📍 ${coordBrgy()} — your barangay only</span></div>`:''}
+    ${isCoord()?`<div style="margin-bottom:10px;">
+    ${coordBrgy()
+      ?'<span class="coord-tag">📍 '+coordBrgy()+' — your barangay only</span>'
+      :'<div style="background:#fee2e2;border-radius:10px;padding:10px 14px;color:#dc2626;font-size:13px;">⚠️ No barangay assigned to your account. Contact Admin to set your barangay.</div>'
+    }
+  </div>`:''}
     <div style="display:flex;gap:8px;margin-bottom:10px;">
       <input id="voter-search" value="${S.search}" placeholder="🔍  Search name, notes, occupation..."
         style="flex:1;padding:11px 14px;border-radius:12px;border:2px solid ${C.border};font-size:13px;outline:none;background:#fff;font-family:'Outfit',sans-serif;"
@@ -596,7 +692,7 @@ function renderVoters(){
         ${filterFields.map(f=>`
           <div>
             <div style="font-size:9.5px;color:${C.muted};margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">${f.l}</div>
-            <select class="inp" onchange="S.filters['${f.k}']=this.value;resubVoters();">
+            <select class="inp" onchange="S.filters[this.dataset.key]=this.value;resubVoters();" data-key="${f.k}">
               ${f.opts.map(o=>`<option value="${o}" ${S.filters[f.k]===o?'selected':''}>${o||'All '+f.l+'s'}</option>`).join('')}
             </select>
           </div>`).join('')}
@@ -661,12 +757,14 @@ function renderBarangays(){
 
   if(viewBrgy){
     const name=viewBrgy;
-    const bv=isCoord()?S.voters:S.voters.filter(v=>v.barangay===name);
+    const bv=S.barangayVoters.length>0
+      ? S.barangayVoters
+      : (isCoord()?S.voters:S.voters.filter(v=>v.barangay===name));
     const counts={Strong:0,Leaning:0,Undecided:0,Opposition:0};
     bv.forEach(v=>{if(counts[v.support]!==undefined)counts[v.support]++;});
     const canv=S.stats[`b_${name}_canvassed`]||0;
     const backBtn=isCoord()?'':
-      `<button onclick="S.selectedBarangay=null;render()" style="display:flex;align-items:center;gap:6px;margin-bottom:16px;background:transparent;border:none;color:${C.navy};font-size:14px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:700;">← All Barangays</button>`;
+      `<button onclick="S.selectedBarangay=null;S.barangayVoters=[];render()" style="display:flex;align-items:center;gap:6px;margin-bottom:16px;background:transparent;border:none;color:${C.navy};font-size:14px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:700;">← All Barangays</button>`;
     return `
     <div class="tab-content">
       ${backBtn}
@@ -731,7 +829,7 @@ function renderBarangays(){
       const cnt=S.stats[`b_${name}_count`]||0;
       const canv=parseInt(S.stats[`b_${name}_canvassed`]||0);
       return `
-      <div onclick="S.selectedBarangay='${name}';render()" style="background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:9px;box-shadow:0 2px 10px rgba(15,45,94,0.07);cursor:pointer;display:flex;align-items:center;gap:12px;">
+      <div onclick="S.selectedBarangay='${name}';S.barangayVoters=[];loadBarangayVoters('${name}');" style="background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:9px;box-shadow:0 2px 10px rgba(15,45,94,0.07);cursor:pointer;display:flex;align-items:center;gap:12px;">
         <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,${C.navy}18,${C.teal}18);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🏘️</div>
         <div style="flex:1;min-width:0;">
           <div style="font-weight:700;font-size:14px;color:${C.text};">Brgy. ${name}</div>
@@ -894,11 +992,19 @@ function renderAdmin(){
          {icon:'📊',label:'Support Analysis',desc:'Count by support level',action:'exportSupportCSV()'},
          {icon:'🏘️',label:'Barangay Summary',desc:'Voter count per barangay',action:'exportBarangayCSV()'},
       ].map((r,i,a)=>`
-        <button onclick="${r.action}" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 0;background:transparent;border:none;border-bottom:${i<a.length-1?'1px solid '+C.border:'none'};cursor:pointer;text-align:left;">
+        <button onclick="${r.action}" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 0;background:transparent;border:none;border-bottom:1px solid ${C.border};cursor:pointer;text-align:left;">
           <span style="font-size:22px;flex-shrink:0;">${r.icon}</span>
           <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:${C.text};">${r.label}</div><div style="font-size:11px;color:${C.muted};">${r.desc}</div></div>
           <span style="font-size:18px;color:${C.gold};">⬇</span>
         </button>`).join('')}
+    </div>
+    <div class="card" style="background:#fef3c710;border:1px solid #fbbf2440;">
+      <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:4px;">⚠️ Data Operations</div>
+      <div style="font-size:12px;color:${C.muted};margin-bottom:14px;">Bulk actions on voter records — use with caution</div>
+      <button onclick="resetAllSupport()" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 0;background:transparent;border:none;border-bottom:1px solid ${C.border};cursor:pointer;text-align:left;">
+        <span style="font-size:22px;flex-shrink:0;">🔄</span>
+        <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#dc2626;">Reset All Support to Undecided</div><div style="font-size:11px;color:${C.muted};">Sets every voter's support level back to Undecided. Cannot be undone.</div></div>
+      </button>
     </div>`:''}
 
     ${sec==='settings'?`
@@ -1157,7 +1263,15 @@ function renderAddUserModal(){
    ACTIONS
    ════════════════════════════════════════════════════ */
 function setTab(t){ S.tab=t; S.modal=null; S.selectedBarangay=null; S.error=''; S.success=''; render(); }
-function resubVoters(){ render(); setTimeout(()=>{ S.unsubs.forEach(u=>u()); S.unsubs=[]; subscribeVoters(); subscribeFeed(); subscribeStats(); subscribeUsers(); },50); }
+function resubVoters(){
+  // Unsubscribe only the voters listener (first one), keep others
+  if(S.unsubs.length>0){
+    S.unsubs[0](); // unsubscribe voters
+    S.unsubs.splice(0,1);
+  }
+  subscribeVoters();
+  render();
+}
 
 let searchTimer=null;
 function doSearch(val){
