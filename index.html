@@ -3,9 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TubigonCRM">
   <meta name="theme-color" content="#0f2d5e">
+  <meta name="description" content="Voter Management System — Tubigon Municipality, Bohol">
+  <link rel="manifest" href="./manifest.json">
   <title>TubigonCRM</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -144,7 +148,7 @@ let S = {
   voters:[], feed:[], systemUsers:[],
   barangayVoters:[], // voters loaded for selected barangay detail view
   stats:{},
-  search:'', filters:{gender:'',ageGroup:'',occupation:'',barangay:'',support:'Undecided'},
+  search:'', filters:{gender:'',ageGroup:'',occupation:'',barangay:'',support:'Undecided',voterCategory:''},
   filterOpen:false,
   selectedBarangay:null,
   modal:null,
@@ -214,8 +218,9 @@ function buildQuery(){
   }
   if(S.filters.gender)     q=q.where('gender','==',S.filters.gender);
   if(S.filters.ageGroup)   q=q.where('ageGroup','==',S.filters.ageGroup);
-  if(S.filters.occupation) q=q.where('occupation','==',S.filters.occupation);
-  if(S.filters.support)    q=q.where('support','==',S.filters.support);
+  if(S.filters.occupation)    q=q.where('occupation','==',S.filters.occupation);
+  if(S.filters.support)       q=q.where('support','==',S.filters.support);
+  if(S.filters.voterCategory) q=q.where('voterCategory','==',S.filters.voterCategory);
   return q.limit(100);
 }
 
@@ -225,6 +230,8 @@ function subscribeVoters(){
     // Sort client-side by lastName since orderBy is skipped when filtering
     voters.sort((a,b)=>(a.lastName||'').localeCompare(b.lastName||''));
     S.voters=voters;
+    // Cache for offline use
+    cacheLoadedVotersForOffline(voters);
     render();
   },e=>{
     console.error('voters:',e);
@@ -459,10 +466,10 @@ async function exportVotersCSV(){
     let q=db.collection('voters').orderBy('lastName');
     if(isCoord()) q=q.where('barangay','==',coordBrgy());
     const snap=await q.get();
-    const rows=[['ID','Last Name','First Name','Birthday','Age','Gender','Age Group','Barangay','Occupation','Contact','Support','Notes']];
+    const rows=[['ID','Last Name','First Name','Middle Name','Birthday','Age','Gender','Age Group','Barangay','Precinct','COMELEC Category','Occupation','Contact','Support','Notes']];
     snap.docs.forEach(d=>{
       const v=d.data();
-      rows.push([d.id,v.lastName,v.firstName,v.birthday||'',v.age,v.gender,v.ageGroup,v.barangay,v.occupation,v.contact||'',v.support,v.notes||'']);
+      rows.push([d.id,v.lastName,v.firstName,v.middleName||'',v.birthday||'',v.age,v.gender,v.ageGroup,v.barangay,v.precinct||'',v.voterCategory||'Regular',v.occupation,v.contact||'',v.support,v.notes||'']);
     });
     dlCSV(rows,isCoord()?`Voters_${coordBrgy()}`:'TubigonVoters_All');
   }catch(e){ set({error:'Export failed: '+e.message}); }
@@ -627,6 +634,26 @@ function renderDashboard(){
       </div>
     </div>
     <div class="card">
+      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:12px;">COMELEC Voter Categories</div>
+      ${[
+        {k:'vc_Regular',l:'Regular',c:'#64748b'},
+        {k:'vc_Youth',l:'Youth (*)',c:'#10b981'},
+        {k:'vc_Senior',l:'Senior Citizen (C)',c:'#f59e0b'},
+        {k:'vc_PWD',l:'PWD / Disabled (B)',c:'#8b5cf6'},
+        {k:'vc_Illiterate',l:'Illiterate (A)',c:'#ef4444'},
+      ].map(cat=>{
+        const v=st[cat.k]||0;
+        return `<div style="margin-bottom:9px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+            <span style="color:${cat.c};font-weight:600;">${cat.l}</span>
+            <span style="color:${C.muted};font-weight:600;">${v.toLocaleString()}</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${total>0?Math.min(((v/total)*100),100).toFixed(1):0}%;background:${cat.c};"></div></div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="card">
       <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:12px;">Occupation Breakdown</div>
       ${occs.map((o,i)=>{
         const v=st[o.k]||0;
@@ -664,6 +691,7 @@ function renderVoters(){
   // Filter options — coordinators cannot change barangay filter
   const filterFields=[
     {k:'support',l:'Support',opts:['','Strong','Leaning','Undecided','Opposition']},
+    {k:'voterCategory',l:'COMELEC Category',opts:['','Regular','Youth','Senior','PWD','Illiterate']},
     {k:'gender',l:'Gender',opts:['','Male','Female']},
     {k:'ageGroup',l:'Age Group',opts:['','Youth','Adult','Senior']},
     {k:'occupation',l:'Occupation',opts:['',...OCCUPATIONS]},
@@ -697,7 +725,7 @@ function renderVoters(){
             </select>
           </div>`).join('')}
       </div>
-      ${hf?`<button onclick="S.filters={gender:'',ageGroup:'',occupation:'',barangay:'',support:''};resubVoters();" style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid ${C.border};background:transparent;color:${C.danger};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✕ Clear Filters</button>`:''}
+      ${hf?`<button onclick="S.filters={gender:'',ageGroup:'',occupation:'',barangay:'',support:'',voterCategory:''};resubVoters();" style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid ${C.border};background:transparent;color:${C.danger};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✕ Clear Filters</button>`:''}
     </div>`:''}
 
     <div id="voter-list">
@@ -721,6 +749,7 @@ function renderVoters(){
           <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
             <span class="badge" style="background:${v.gender==='Female'?'#e879a822':'#3b82f622'};color:${v.gender==='Female'?'#e879a8':'#3b82f6'};">${v.gender}</span>
             <span class="badge" style="background:#6366f122;color:#6366f1;">${ageGroup(age)} · ${age||'?'}y</span>
+            ${v.voterCategory&&v.voterCategory!=='Regular'?`<span class="badge" style="background:#f59e0b22;color:#b45309;">${v.voterCategory}</span>`:''}
             ${hasNotes?`<span style="font-size:10px;color:${C.muted};">📝</span>`:''}
           </div>
         </div>
@@ -1124,6 +1153,8 @@ function renderVoterModal(){
         <div class="info-cell"><div class="info-label">🎂 Age</div><div class="info-val">${age||'Not set'}${age?' years old':''}</div></div>
         <div class="info-cell"><div class="info-label">👤 Gender</div><div class="info-val">${v.gender}</div></div>
         <div class="info-cell"><div class="info-label">📊 Age Group</div><div class="info-val">${ag}</div></div>
+        <div class="info-cell"><div class="info-label">📋 COMELEC Category</div><div class="info-val">${v.voterCategory||'Regular'}</div></div>
+        <div class="info-cell"><div class="info-label">🗳️ Precinct</div><div class="info-val">${v.precinct||'—'}</div></div>
         <div class="info-cell" style="grid-column:span 2"><div class="info-label">📱 Contact</div><div class="info-val">${v.contact||'Not provided'}</div></div>
       </div>`}
 
@@ -1352,7 +1383,7 @@ function renderMain(){
   else if(S.tab==='barangays') body=renderBarangays();
   else if(S.tab==='feed')      body=renderFeed();
   else if(S.tab==='admin')     body=renderAdmin();
-  return `${renderHeader()}<div class="content">${body}</div>${renderNav()}${renderModal()}`;
+  return `${renderHeader()}${getOfflineBar()}<div class="content" style="padding-top:${isOnline?'0':'28px'}">${body}</div>${renderNav()}${renderModal()}`;
 }
 
 /* ════════════════════════════════════════════════════
@@ -1429,6 +1460,209 @@ async function deleteUser(uid, name){
 }
 
 render();
+
+/* ════════════════════════════════════════════════════
+   INDEXEDDB — OFFLINE VOTER CACHE
+   ════════════════════════════════════════════════════ */
+const IDB_NAME    = 'tubigon-offline';
+const IDB_VERSION = 2;
+let idb = null;
+
+function openIDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+    req.onupgradeneeded = e=>{
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains('voters'))
+        db.createObjectStore('voters', {keyPath:'id'});
+      if(!db.objectStoreNames.contains('pendingWrites'))
+        db.createObjectStore('pendingWrites', {keyPath:'id', autoIncrement:true});
+    };
+    req.onsuccess = e=>{ idb=e.target.result; resolve(idb); };
+    req.onerror   = e=>reject(e.target.error);
+  });
+}
+
+async function cacheVotersOffline(voters){
+  if(!idb) await openIDB();
+  const tx = idb.transaction('voters','readwrite');
+  const store = tx.objectStore('voters');
+  for(const v of voters) store.put(v);
+  return new Promise((res,rej)=>{ tx.oncomplete=res; tx.onerror=rej; });
+}
+
+async function getOfflineVoters(barangay){
+  if(!idb) await openIDB();
+  return new Promise((resolve,reject)=>{
+    const tx    = idb.transaction('voters','readonly');
+    const store = tx.objectStore('voters');
+    const req   = store.getAll();
+    req.onsuccess = ()=>{
+      let voters = req.result||[];
+      if(barangay) voters = voters.filter(v=>v.barangay===barangay);
+      voters.sort((a,b)=>(a.lastName||'').localeCompare(b.lastName||''));
+      resolve(voters);
+    };
+    req.onerror = ()=>reject(req.error);
+  });
+}
+
+async function queuePendingWrite(action, docId, data){
+  if(!idb) await openIDB();
+  const tx    = idb.transaction('pendingWrites','readwrite');
+  const store = tx.objectStore('pendingWrites');
+  store.add({action, docId, data, timestamp: Date.now()});
+}
+
+async function syncPendingWrites(){
+  if(!idb) await openIDB();
+  const tx     = idb.transaction('pendingWrites','readwrite');
+  const store  = tx.objectStore('pendingWrites');
+  const allReq = store.getAll();
+  allReq.onsuccess = async ()=>{
+    const pending = allReq.result||[];
+    if(pending.length===0) return;
+    console.log(`Syncing ${pending.length} pending writes...`);
+    for(const item of pending){
+      try{
+        if(item.action==='update'){
+          await db.collection('voters').doc(item.docId).update(item.data);
+        } else if(item.action==='add'){
+          await db.collection('voters').add(item.data);
+        }
+        // Delete from pending
+        const tx2 = idb.transaction('pendingWrites','readwrite');
+        tx2.objectStore('pendingWrites').delete(item.id);
+      } catch(e){
+        console.warn('Pending write failed:', e.message);
+      }
+    }
+    console.log('Sync complete');
+  };
+}
+
+/* ════════════════════════════════════════════════════
+   OFFLINE DETECTION + SYNC
+   ════════════════════════════════════════════════════ */
+let isOnline = navigator.onLine;
+
+window.addEventListener('online', async ()=>{
+  isOnline = true;
+  console.log('Back online — syncing pending writes...');
+  await syncPendingWrites();
+  // Refresh voters from Firestore
+  S.unsubs.forEach(u=>u()); S.unsubs=[];
+  subscribeVoters(); subscribeFeed(); subscribeStats(); subscribeUsers();
+  set({success:'Back online ✓ Data synced'});
+  setTimeout(()=>set({success:''}), 3000);
+});
+
+window.addEventListener('offline', ()=>{
+  isOnline = false;
+  set({success:'', error:''});
+  // Load from IndexedDB
+  const brgy = isCoord()?coordBrgy():S.filters.barangay||null;
+  getOfflineVoters(brgy).then(voters=>{
+    S.voters = voters;
+    render();
+  });
+});
+
+/* ════════════════════════════════════════════════════
+   OVERRIDE updateSupport FOR OFFLINE
+   ════════════════════════════════════════════════════ */
+const _updateSupport = updateSupport;
+async function updateSupport(id, newSupport){
+  if(!isOnline){
+    // Update locally
+    const v = S.voters.find(x=>x.id===id);
+    if(v){
+      const old = v.support;
+      v.support = newSupport;
+      // Update in IndexedDB
+      if(idb){
+        const tx = idb.transaction('voters','readwrite');
+        tx.objectStore('voters').put({...v});
+      }
+      // Queue for sync
+      await queuePendingWrite('update', id, {support:newSupport});
+      if(S.modal?.data?.id===id) S.modal.data={...S.modal.data,support:newSupport};
+      set({success:'Saved offline — will sync when online ✓'});
+      setTimeout(()=>set({success:''}),3000);
+    }
+    return;
+  }
+  return _updateSupport(id, newSupport);
+}
+
+/* ════════════════════════════════════════════════════
+   OVERRIDE saveNotes FOR OFFLINE
+   ════════════════════════════════════════════════════ */
+const _saveNotes = saveNotes;
+async function saveNotes(id, notes){
+  if(!isOnline){
+    const v = S.voters.find(x=>x.id===id);
+    if(v){
+      v.notes = notes;
+      if(idb){
+        const tx = idb.transaction('voters','readwrite');
+        tx.objectStore('voters').put({...v});
+      }
+      await queuePendingWrite('update', id, {notes});
+      if(S.modal?.data?.id===id) S.modal.data={...S.modal.data,notes};
+      set({success:'Notes saved offline — will sync when online ✓'});
+      setTimeout(()=>set({success:''}),3000);
+    }
+    return;
+  }
+  return _saveNotes(id, notes);
+}
+
+/* ════════════════════════════════════════════════════
+   CACHE VOTERS FOR OFFLINE ON LOAD
+   ════════════════════════════════════════════════════ */
+function cacheLoadedVotersForOffline(voters){
+  if(voters.length>0){
+    openIDB().then(()=>cacheVotersOffline(voters)).catch(e=>console.warn('IDB cache failed:',e));
+  }
+}
+
+/* ════════════════════════════════════════════════════
+   OFFLINE STATUS INDICATOR
+   ════════════════════════════════════════════════════ */
+function getOfflineBar(){
+  if(isOnline) return '';
+  return `<div style="background:#f59e0b;color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:700;position:fixed;top:56px;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:99;">
+    📵 Offline Mode — Changes will sync when you reconnect
+  </div>`;
+}
+
+/* ════════════════════════════════════════════════════
+   SERVICE WORKER REGISTRATION
+   ════════════════════════════════════════════════════ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg=>{
+        console.log('SW registered:', reg.scope);
+        // Listen for sync messages from SW
+        navigator.serviceWorker.addEventListener('message', e=>{
+          if(e.data.type==='SYNC_PENDING') syncPendingWrites();
+        });
+        // Check for updates
+        reg.addEventListener('updatefound', ()=>{
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', ()=>{
+            if(newWorker.state==='installed' && navigator.serviceWorker.controller){
+              console.log('New SW available');
+            }
+          });
+        });
+      })
+      .catch(err=>console.warn('SW registration failed:', err));
+  });
+}
+
 </script>
 </body>
 </html>
