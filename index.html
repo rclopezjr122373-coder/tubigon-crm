@@ -11,6 +11,7 @@
   <meta name="description" content="Voter Management System — Tubigon Municipality, Bohol">
   <link rel="manifest" href="./manifest.json">
   <title>TubigonCRM</title>
+  <!-- v3.2 -->
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -955,6 +956,7 @@ async function doPost(type){
    RENDER — ADMIN TAB
    ════════════════════════════════════════════════════ */
 function renderAdmin(){
+  if(!isAdmin()) return '<div class="tab-content"><div class="card">Access denied.</div></div>';
   const sec=S.adminSec;
   return `
   <div class="tab-content">
@@ -1374,6 +1376,16 @@ async function saveNewUser(){
 }
 
 /* ════════════════════════════════════════════════════
+   ONLINE / OFFLINE STATE
+   ════════════════════════════════════════════════════ */
+let isOnline = navigator.onLine;
+
+function getOfflineBar(){
+  if(isOnline) return '';
+  return '<div style="background:#f59e0b;color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:700;position:fixed;top:56px;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:99;">📵 Offline Mode — Changes will sync when you reconnect</div>';
+}
+
+/* ════════════════════════════════════════════════════
    MAIN RENDER
    ════════════════════════════════════════════════════ */
 function renderMain(){
@@ -1383,7 +1395,8 @@ function renderMain(){
   else if(S.tab==='barangays') body=renderBarangays();
   else if(S.tab==='feed')      body=renderFeed();
   else if(S.tab==='admin')     body=renderAdmin();
-  return `${renderHeader()}${getOfflineBar()}<div class="content" style="padding-top:${isOnline?'0':'28px'}">${body}</div>${renderNav()}${renderModal()}`;
+  const offlineBar = typeof getOfflineBar === 'function' ? getOfflineBar() : '';
+  return `${renderHeader()}${offlineBar}<div class="content" style="padding-top:${isOnline?'0':'28px'}">${body}</div>${renderNav()}${renderModal()}`;
 }
 
 /* ════════════════════════════════════════════════════
@@ -1544,8 +1557,6 @@ async function syncPendingWrites(){
 /* ════════════════════════════════════════════════════
    OFFLINE DETECTION + SYNC
    ════════════════════════════════════════════════════ */
-let isOnline = navigator.onLine;
-
 window.addEventListener('online', async ()=>{
   isOnline = true;
   console.log('Back online — syncing pending writes...');
@@ -1627,15 +1638,7 @@ function cacheLoadedVotersForOffline(voters){
   }
 }
 
-/* ════════════════════════════════════════════════════
-   OFFLINE STATUS INDICATOR
-   ════════════════════════════════════════════════════ */
-function getOfflineBar(){
-  if(isOnline) return '';
-  return `<div style="background:#f59e0b;color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:700;position:fixed;top:56px;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:99;">
-    📵 Offline Mode — Changes will sync when you reconnect
-  </div>`;
-}
+
 
 /* ════════════════════════════════════════════════════
    SERVICE WORKER REGISTRATION

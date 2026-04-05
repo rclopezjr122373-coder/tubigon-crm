@@ -1,6 +1,6 @@
 // TubigonCRM Service Worker v1.0
-const CACHE_NAME = 'tubigon-crm-v1';
-const FIREBASE_CACHE = 'tubigon-firebase-v1';
+const CACHE_NAME = 'tubigon-crm-v3';
+const FIREBASE_CACHE = 'tubigon-firebase-v3';
 
 // App shell files to cache on install
 const APP_SHELL = [
