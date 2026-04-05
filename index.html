@@ -3,9 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TubigonCRM">
   <meta name="theme-color" content="#0f2d5e">
+  <meta name="description" content="Voter Management System — Tubigon Municipality, Bohol">
+  <link rel="manifest" href="./manifest.json">
   <title>TubigonCRM</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -226,6 +230,8 @@ function subscribeVoters(){
     // Sort client-side by lastName since orderBy is skipped when filtering
     voters.sort((a,b)=>(a.lastName||'').localeCompare(b.lastName||''));
     S.voters=voters;
+    // Cache for offline use
+    cacheLoadedVotersForOffline(voters);
     render();
   },e=>{
     console.error('voters:',e);
@@ -1368,6 +1374,16 @@ async function saveNewUser(){
 }
 
 /* ════════════════════════════════════════════════════
+   ONLINE / OFFLINE STATE
+   ════════════════════════════════════════════════════ */
+let isOnline = navigator.onLine;
+
+function getOfflineBar(){
+  if(isOnline) return '';
+  return '<div style="background:#f59e0b;color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:700;position:fixed;top:56px;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:99;">📵 Offline Mode — Changes will sync when you reconnect</div>';
+}
+
+/* ════════════════════════════════════════════════════
    MAIN RENDER
    ════════════════════════════════════════════════════ */
 function renderMain(){
@@ -1377,7 +1393,8 @@ function renderMain(){
   else if(S.tab==='barangays') body=renderBarangays();
   else if(S.tab==='feed')      body=renderFeed();
   else if(S.tab==='admin')     body=renderAdmin();
-  return `${renderHeader()}<div class="content">${body}</div>${renderNav()}${renderModal()}`;
+  const offlineBar = typeof getOfflineBar === 'function' ? getOfflineBar() : '';
+  return `${renderHeader()}${offlineBar}<div class="content" style="padding-top:${isOnline?'0':'28px'}">${body}</div>${renderNav()}${renderModal()}`;
 }
 
 /* ════════════════════════════════════════════════════
@@ -1454,6 +1471,199 @@ async function deleteUser(uid, name){
 }
 
 render();
+
+/* ════════════════════════════════════════════════════
+   INDEXEDDB — OFFLINE VOTER CACHE
+   ════════════════════════════════════════════════════ */
+const IDB_NAME    = 'tubigon-offline';
+const IDB_VERSION = 2;
+let idb = null;
+
+function openIDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+    req.onupgradeneeded = e=>{
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains('voters'))
+        db.createObjectStore('voters', {keyPath:'id'});
+      if(!db.objectStoreNames.contains('pendingWrites'))
+        db.createObjectStore('pendingWrites', {keyPath:'id', autoIncrement:true});
+    };
+    req.onsuccess = e=>{ idb=e.target.result; resolve(idb); };
+    req.onerror   = e=>reject(e.target.error);
+  });
+}
+
+async function cacheVotersOffline(voters){
+  if(!idb) await openIDB();
+  const tx = idb.transaction('voters','readwrite');
+  const store = tx.objectStore('voters');
+  for(const v of voters) store.put(v);
+  return new Promise((res,rej)=>{ tx.oncomplete=res; tx.onerror=rej; });
+}
+
+async function getOfflineVoters(barangay){
+  if(!idb) await openIDB();
+  return new Promise((resolve,reject)=>{
+    const tx    = idb.transaction('voters','readonly');
+    const store = tx.objectStore('voters');
+    const req   = store.getAll();
+    req.onsuccess = ()=>{
+      let voters = req.result||[];
+      if(barangay) voters = voters.filter(v=>v.barangay===barangay);
+      voters.sort((a,b)=>(a.lastName||'').localeCompare(b.lastName||''));
+      resolve(voters);
+    };
+    req.onerror = ()=>reject(req.error);
+  });
+}
+
+async function queuePendingWrite(action, docId, data){
+  if(!idb) await openIDB();
+  const tx    = idb.transaction('pendingWrites','readwrite');
+  const store = tx.objectStore('pendingWrites');
+  store.add({action, docId, data, timestamp: Date.now()});
+}
+
+async function syncPendingWrites(){
+  if(!idb) await openIDB();
+  const tx     = idb.transaction('pendingWrites','readwrite');
+  const store  = tx.objectStore('pendingWrites');
+  const allReq = store.getAll();
+  allReq.onsuccess = async ()=>{
+    const pending = allReq.result||[];
+    if(pending.length===0) return;
+    console.log(`Syncing ${pending.length} pending writes...`);
+    for(const item of pending){
+      try{
+        if(item.action==='update'){
+          await db.collection('voters').doc(item.docId).update(item.data);
+        } else if(item.action==='add'){
+          await db.collection('voters').add(item.data);
+        }
+        // Delete from pending
+        const tx2 = idb.transaction('pendingWrites','readwrite');
+        tx2.objectStore('pendingWrites').delete(item.id);
+      } catch(e){
+        console.warn('Pending write failed:', e.message);
+      }
+    }
+    console.log('Sync complete');
+  };
+}
+
+/* ════════════════════════════════════════════════════
+   OFFLINE DETECTION + SYNC
+   ════════════════════════════════════════════════════ */
+window.addEventListener('online', async ()=>{
+  isOnline = true;
+  console.log('Back online — syncing pending writes...');
+  await syncPendingWrites();
+  // Refresh voters from Firestore
+  S.unsubs.forEach(u=>u()); S.unsubs=[];
+  subscribeVoters(); subscribeFeed(); subscribeStats(); subscribeUsers();
+  set({success:'Back online ✓ Data synced'});
+  setTimeout(()=>set({success:''}), 3000);
+});
+
+window.addEventListener('offline', ()=>{
+  isOnline = false;
+  set({success:'', error:''});
+  // Load from IndexedDB
+  const brgy = isCoord()?coordBrgy():S.filters.barangay||null;
+  getOfflineVoters(brgy).then(voters=>{
+    S.voters = voters;
+    render();
+  });
+});
+
+/* ════════════════════════════════════════════════════
+   OVERRIDE updateSupport FOR OFFLINE
+   ════════════════════════════════════════════════════ */
+const _updateSupport = updateSupport;
+async function updateSupport(id, newSupport){
+  if(!isOnline){
+    // Update locally
+    const v = S.voters.find(x=>x.id===id);
+    if(v){
+      const old = v.support;
+      v.support = newSupport;
+      // Update in IndexedDB
+      if(idb){
+        const tx = idb.transaction('voters','readwrite');
+        tx.objectStore('voters').put({...v});
+      }
+      // Queue for sync
+      await queuePendingWrite('update', id, {support:newSupport});
+      if(S.modal?.data?.id===id) S.modal.data={...S.modal.data,support:newSupport};
+      set({success:'Saved offline — will sync when online ✓'});
+      setTimeout(()=>set({success:''}),3000);
+    }
+    return;
+  }
+  return _updateSupport(id, newSupport);
+}
+
+/* ════════════════════════════════════════════════════
+   OVERRIDE saveNotes FOR OFFLINE
+   ════════════════════════════════════════════════════ */
+const _saveNotes = saveNotes;
+async function saveNotes(id, notes){
+  if(!isOnline){
+    const v = S.voters.find(x=>x.id===id);
+    if(v){
+      v.notes = notes;
+      if(idb){
+        const tx = idb.transaction('voters','readwrite');
+        tx.objectStore('voters').put({...v});
+      }
+      await queuePendingWrite('update', id, {notes});
+      if(S.modal?.data?.id===id) S.modal.data={...S.modal.data,notes};
+      set({success:'Notes saved offline — will sync when online ✓'});
+      setTimeout(()=>set({success:''}),3000);
+    }
+    return;
+  }
+  return _saveNotes(id, notes);
+}
+
+/* ════════════════════════════════════════════════════
+   CACHE VOTERS FOR OFFLINE ON LOAD
+   ════════════════════════════════════════════════════ */
+function cacheLoadedVotersForOffline(voters){
+  if(voters.length>0){
+    openIDB().then(()=>cacheVotersOffline(voters)).catch(e=>console.warn('IDB cache failed:',e));
+  }
+}
+
+
+
+/* ════════════════════════════════════════════════════
+   SERVICE WORKER REGISTRATION
+   ════════════════════════════════════════════════════ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg=>{
+        console.log('SW registered:', reg.scope);
+        // Listen for sync messages from SW
+        navigator.serviceWorker.addEventListener('message', e=>{
+          if(e.data.type==='SYNC_PENDING') syncPendingWrites();
+        });
+        // Check for updates
+        reg.addEventListener('updatefound', ()=>{
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', ()=>{
+            if(newWorker.state==='installed' && navigator.serviceWorker.controller){
+              console.log('New SW available');
+            }
+          });
+        });
+      })
+      .catch(err=>console.warn('SW registration failed:', err));
+  });
+}
+
 </script>
 </body>
 </html>
