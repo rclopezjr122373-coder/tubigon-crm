@@ -84,7 +84,13 @@ const FIREBASE_CONFIG = {
 firebase.initializeApp(FIREBASE_CONFIG);
 const auth = firebase.auth();
 const db   = firebase.firestore();
-db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('Offline:',e.code));
+db.enablePersistence({synchronizeTabs:true}).catch(e=>{
+  if(e.code==='failed-precondition'){
+    console.warn('Multiple tabs open — offline persistence disabled');
+  } else if(e.code==='unimplemented'){
+    console.warn('Browser does not support offline persistence');
+  }
+});
 
 /* ════════════════════════════════════════════════════
    CONSTANTS
