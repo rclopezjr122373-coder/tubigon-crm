@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -162,7 +163,7 @@ let S = {
   voters:[], feed:[], systemUsers:[],
   barangayVoters:[], searchResults:null, // voters loaded for selected barangay detail view
   stats:{},
-  search:'', filters:{gender:'',ageGroup:'',occupation:'',barangay:'',support:'Undecided',voterCategory:''},
+  search:'', filters:{gender:'',ageGroup:'',occupation:'',barangay:'',support:'',voterCategory:''},
   filterOpen:false,
   selectedBarangay:null,
   modal:null,
@@ -216,26 +217,23 @@ function buildQuery(){
   }
 
   const hasFilter = isCoord() ||
-    S.filters.barangay || S.filters.gender || S.filters.ageGroup ||
-    S.filters.occupation || S.filters.support;
+    S.filters.barangay ;
 
   // Only use orderBy when no filters active — avoids composite index requirement
-  let q = hasFilter
-    ? db.collection('voters')
-    : db.collection('voters').orderBy('lastName');
+  
+  let q = db.collection('voters');
 
-  if(isCoord()){
-    // Coordinator locked to their barangay — exact match required
-    q = q.where('barangay','==', brgy);
-  } else {
-    if(S.filters.barangay) q=q.where('barangay','==',S.filters.barangay);
-  }
-  if(S.filters.gender)     q=q.where('gender','==',S.filters.gender);
-  if(S.filters.ageGroup)   q=q.where('ageGroup','==',S.filters.ageGroup);
-  if(S.filters.occupation)    q=q.where('occupation','==',S.filters.occupation);
-  if(S.filters.support)       q=q.where('support','==',S.filters.support);
-  if(S.filters.voterCategory) q=q.where('voterCategory','==',S.filters.voterCategory);
-  return q.limit(100);
+  if(S.filters.gender) q = q.where('gender','==',S.filters.gender);
+  if(S.filters.ageGroup) q = q.where('ageGroup','==',S.filters.ageGroup);
+  if(S.filters.occupation) q = q.where('occupation','==',S.filters.occupation);
+  if(S.filters.support) q = q.where('support','==',S.filters.support);
+  if(S.filters.voterCategory) q = q.where('voterCategory','==',S.filters.voterCategory);
+  if(S.filters.barangay) q = q.where('barangay','==',S.filters.barangay);
+
+  // Always order by lastName for consistency
+  q = q.orderBy('lastName').limit(2000);
+
+  return q;
 }
 
 function subscribeVoters(){
