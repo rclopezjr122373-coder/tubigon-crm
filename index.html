@@ -163,7 +163,7 @@ let S = {
   voters:[], feed:[], systemUsers:[],
   barangayVoters:[], searchResults:null, // voters loaded for selected barangay detail view
   stats:{},
-  search:'', filters:{gender:'',ageGroup:'',occupation:'',barangay:'',support:'',voterCategory:''},
+  search:'', filters:{gender:'',occupation:'',barangay:'',support:'',voterCategory:''},
   filterOpen:false,
   selectedBarangay:null,
   modal:null,
@@ -224,7 +224,6 @@ function buildQuery(){
   let q = db.collection('voters');
 
   if(S.filters.gender) q = q.where('gender','==',S.filters.gender);
-  if(S.filters.ageGroup) q = q.where('ageGroup','==',S.filters.ageGroup);
   if(S.filters.occupation) q = q.where('occupation','==',S.filters.occupation);
   if(S.filters.support) q = q.where('support','==',S.filters.support);
   if(S.filters.voterCategory) q = q.where('voterCategory','==',S.filters.voterCategory);
@@ -708,7 +707,6 @@ function renderVoters(){
     {k:'support',l:'Support',opts:['','Strong','Leaning','Undecided','Opposition']},
     {k:'voterCategory',l:'COMELEC Category',opts:['','Regular','Youth','Senior','PWD','Illiterate']},
     {k:'gender',l:'Gender',opts:['','Male','Female']},
-    {k:'ageGroup',l:'Age Group',opts:['','Youth','Adult','Senior']},
     {k:'occupation',l:'Occupation',opts:['',...OCCUPATIONS]},
     ...(isAdmin()?[{k:'barangay',l:'Barangay',opts:['',...BARANGAYS]}]:[]),
   ];
@@ -740,8 +738,7 @@ function renderVoters(){
             </select>
           </div>`).join('')}
       </div>
-      ${hf?`<button onclick="S.filters={gender:'',ageGroup:'',occupation:'',barangay:'',support:'',voterCategory:''};S.searchResults=null;S.search='';resubVoters();" style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid ${C.border};background:transparent;color:${C.danger};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✕ Clear Filters</button>`:''}
-    </div>`:''}
+      ${hf?`<button onclick="S.filters={gender:'',occupation:'',barangay:'',support:'',voterCategory:''};...
 
     <div id="voter-list">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
