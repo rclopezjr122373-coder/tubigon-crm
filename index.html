@@ -3,38 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tubigon CRM</title>
+    <title>TubigonCRM - Voter Management System</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="script.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-functions.js"></script>
 </head>
 <body>
-    <header>
-        <h1>Welcome to Tubigon CRM</h1>
-    </header>
-    <main>
-        <section>
-            <h2>Features</h2>
-            <ul>
-                <li>Feature 1: Manage contacts</li>
-                <li>Feature 2: Track deals</li>
-                <li>Feature 3: Generate reports</li>
-            </ul>
-        </section>
-        <section>
-            <h2>Contact Us</h2>
-            <form id="contact-form">
-                <label for="name">Name:</label>
-                <input type="text" id="name" name="name" required>
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="email" required>
-                <label for="message">Message:</label>
-                <textarea id="message" name="message" required></textarea>
-                <button type="submit">Send</button>
-            </form>
-        </section>
-    </main>
-    <footer>
-        <p>&copy; 2026 Tubigon CRM</p>
-    </footer>
+    <div id="app">
+        <header>
+            <h1>TubigonCRM - Voter Management System</h1>
+        </header>
+        <main>
+            <section id="auth">
+                <h2>Authentication</h2>
+                <form id="login-form">
+                    <input type="email" id="email" placeholder="Email" required>
+                    <input type="password" id="password" placeholder="Password" required>
+                    <button type="submit">Login</button>
+                </form>
+            </section>
+            <section id="dashboard">
+                <h2>Dashboard Analytics</h2>
+                <div id="analytics-data">
+                    <!-- Dynamic data will be populated here -->
+                </div>
+            </section>
+            <section id="voter-management">
+                <h2>Voter Management</h2>
+                <button id="export-csv">Export CSV</button>
+                <div id="voter-list">
+                    <!-- Voter list will be populated here -->
+                </div>
+            </section>
+            <section id="barangay-tracking">
+                <h2>Barangay Tracking</h2>
+                <div id="barangay-data">
+                    <!-- Barangay data will be populated here -->
+                </div>
+            </section>
+            <section id="community-feed">
+                <h2>Community Feed</h2>
+                <div id="feed">
+                    <!-- Community posts will be listed here -->
+                </div>
+            </section>
+            <section id="admin-panel">
+                <h2>Admin Panel</h2>
+                <div id="admin-controls">
+                    <!-- Admin controls will be available here -->
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="app.js"></script>
+    <script>
+        // Firebase Configuration
+        var firebaseConfig = {
+            apiKey:            "AIzaSyDAiY7Mc4tpm9MipGrnqSa4iNbgoAG-upk",
+  authDomain:        "tubigon-crm-db552.firebaseapp.com",
+  projectId:         "tubigon-crm-db552",
+  storageBucket:     "tubigon-crm-db552.firebasestorage.app",
+  messagingSenderId: "764765774002",
+  appId:             "1:764765774002:web:1e737e77fa54a3eeed69ab"
+        };
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+
+        // Add JavaScript functions for authentication and features... 
+    </script>
 </body>
 </html>
