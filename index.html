@@ -19,6 +19,11 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
     body{font-family:'Outfit',sans-serif;background:#eef2fb;max-width:430px;margin:0 auto;min-height:100vh;overflow-x:hidden;}
+    @supports(padding-top:env(safe-area-inset-top)){
+      .header{padding-top:max(12px,env(safe-area-inset-top));}
+      .content{padding-top:max(70px,calc(56px + env(safe-area-inset-top)));}
+      .bottom-nav{padding-bottom:max(0px,env(safe-area-inset-bottom));}
+    }
     #app{min-height:100vh;}
     .card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(15,45,94,0.08);margin-bottom:12px;}
     .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.3px;white-space:nowrap;}
@@ -33,11 +38,11 @@
     .nav-btn .ni{font-size:19px;}
     .nav-btn .nl{font-size:9.5px;color:#64748b;font-weight:400;font-family:'Outfit',sans-serif;}
     .nav-btn.active .nl{color:#0f2d5e;font-weight:700;}
-    .content{padding:64px 0 72px;}
+    .content{padding:70px 0 76px;}
     .tab-content{padding:16px;}
     .voter-card{background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:9px;box-shadow:0 2px 10px rgba(15,45,94,0.07);display:flex;align-items:center;gap:12px;cursor:pointer;}
     .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;display:flex;flex-direction:column;justify-content:flex-end;}
-    .modal-sheet{background:#fff;border-radius:24px 24px 0 0;padding:24px;max-height:92vh;overflow-y:auto;}
+    .modal-sheet{background:#fff;border-radius:24px 24px 0 0;padding:24px;max-height:92vh;overflow-y:auto;position:relative;}
     .modal-handle{width:38px;height:4px;background:#dde4f0;border-radius:2px;margin:0 auto 20px;}
     .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
     .stat-card{border-radius:16px;padding:14px 16px;color:#fff;}
@@ -147,7 +152,7 @@ let S = {
   screen:'login', user:null, profile:null,
   tab:'dashboard',
   voters:[], feed:[], systemUsers:[],
-  barangayVoters:[], // voters loaded for selected barangay detail view
+  barangayVoters:[], searchResults:null,, // voters loaded for selected barangay detail view
   stats:{},
   search:'', filters:{gender:'',ageGroup:'',occupation:'',barangay:'',support:'Undecided',voterCategory:''},
   filterOpen:false,
@@ -327,12 +332,15 @@ async function saveNotes(id,notes){
 function filteredVoters(){
   if(!S.search) return S.voters;
   const q=S.search.toLowerCase();
-  return S.voters.filter(v=>
-    `${v.firstName} ${v.lastName}`.toLowerCase().includes(q)||
-    (v.barangay||'').toLowerCase().includes(q)||
-    (v.occupation||'').toLowerCase().includes(q)||
-    (v.notes||'').toLowerCase().includes(q)
-  );
+  // Search across all loaded voters
+  return S.voters.filter(v=>{
+    const fullName=`${v.lastName||''} ${v.firstName||''} ${v.middleName||''}`.toLowerCase();
+    return fullName.includes(q)||
+      (v.barangay||'').toLowerCase().includes(q)||
+      (v.occupation||'').toLowerCase().includes(q)||
+      (v.notes||'').toLowerCase().includes(q)||
+      (v.precinct||'').toLowerCase().includes(q);
+  });
 }
 
 /* ════════════════════════════════════════════════════
@@ -686,7 +694,7 @@ function sc(icon,label,value,color,sub=''){
    RENDER — VOTERS TAB
    ════════════════════════════════════════════════════ */
 function renderVoters(){
-  const voters=filteredVoters();
+  const voters=S.searchResults||filteredVoters();
   const role=S.profile?.role;
   const hf=Object.values(S.filters).some(Boolean);
   // Filter options — coordinators cannot change barangay filter
@@ -726,7 +734,7 @@ function renderVoters(){
             </select>
           </div>`).join('')}
       </div>
-      ${hf?`<button onclick="S.filters={gender:'',ageGroup:'',occupation:'',barangay:'',support:'',voterCategory:''};resubVoters();" style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid ${C.border};background:transparent;color:${C.danger};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✕ Clear Filters</button>`:''}
+      ${hf?`<button onclick="S.filters={gender:'',ageGroup:'',occupation:'',barangay:'',support:'',voterCategory:''};S.searchResults=null;S.search='';resubVoters();" style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid ${C.border};background:transparent;color:${C.danger};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✕ Clear Filters</button>`:''}
     </div>`:''}
 
     <div id="voter-list">
@@ -1124,6 +1132,7 @@ function renderVoterModal(){
   <div class="modal-overlay" onclick="if(event.target===this){S.modal=null;render();}">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
+      <button onclick="S.modal=null;S.error='';S.success='';render()" style="position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;border:none;background:#eef2fb;color:#64748b;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
 
       <!-- HEADER -->
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
@@ -1240,6 +1249,7 @@ function renderAddVoterModal(){
   <div class="modal-overlay" onclick="if(event.target===this){S.modal=null;S.error='';render();}">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
+      <button onclick="S.modal=null;S.error='';S.success='';render()" style="position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;border:none;background:#eef2fb;color:#64748b;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
       <div style="font-size:18px;font-weight:800;color:${C.text};margin-bottom:6px;">➕ Add Voter Record</div>
       <div style="font-size:12px;color:${C.muted};margin-bottom:18px;">Birthday auto-calculates age and age group.</div>
       ${S.error?`<div class="err-box">${S.error}</div>`:''}
@@ -1278,6 +1288,7 @@ function renderEditUserModal(){
   <div class="modal-overlay" onclick="if(event.target===this){S.modal=null;S.error='';render();}">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
+      <button onclick="S.modal=null;S.error='';S.success='';render()" style="position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;border:none;background:#eef2fb;color:#64748b;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
       <div style="font-size:18px;font-weight:800;color:${C.text};margin-bottom:18px;">✏️ Edit User</div>
       ${S.error?`<div class="err-box">${S.error}</div>`:''}
       ${S.success?`<div class="ok-box">${S.success}</div>`:''}
@@ -1314,6 +1325,7 @@ function renderAddUserModal(){
   <div class="modal-overlay" onclick="if(event.target===this){S.modal=null;S.error='';render();}">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
+      <button onclick="S.modal=null;S.error='';S.success='';render()" style="position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;border:none;background:#eef2fb;color:#64748b;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
       <div style="font-size:18px;font-weight:800;color:${C.text};margin-bottom:6px;">➕ Add System User</div>
       <div style="font-size:12px;color:${C.muted};line-height:1.5;margin-bottom:18px;">First create in Firebase Console → Authentication → Add User. Then paste the UID here.</div>
       ${S.error?`<div class="err-box">${S.error}</div>`:''}
@@ -1350,16 +1362,43 @@ let searchTimer=null;
 function doSearch(val){
   S.search=val;
   clearTimeout(searchTimer);
-  searchTimer=setTimeout(()=>{
-    // Only re-render the voter list area, not the whole page
+  searchTimer=setTimeout(async ()=>{
+    if(val.length>=3){
+      // Search Firestore for lastName matching
+      try{
+        const q=val.trim();
+        // Query by lastName prefix (case-sensitive in Firestore)
+        // Use title case to match stored format
+        const titleQ=q.charAt(0).toUpperCase()+q.slice(1).toLowerCase();
+        const snap=await db.collection('voters')
+          .orderBy('lastName')
+          .startAt(titleQ)
+          .endAt(titleQ+'')
+          .limit(200)
+          .get();
+        // Also search in currently loaded voters
+        const loaded=filteredVoters();
+        const fromFirestore=snap.docs.map(d=>({id:d.id,...d.data()}));
+        // Merge without duplicates
+        const ids=new Set(loaded.map(v=>v.id));
+        const merged=[...loaded,...fromFirestore.filter(v=>!ids.has(v.id))];
+        merged.sort((a,b)=>(a.lastName||'').localeCompare(b.lastName||''));
+        S.searchResults=merged;
+      }catch(e){
+        S.searchResults=null;
+        console.warn('Search error:',e);
+      }
+    } else {
+      S.searchResults=null;
+    }
     const listEl=document.getElementById('voter-list');
     if(listEl){
-      const voters=filteredVoters();
+      const voters=S.searchResults||filteredVoters();
       listEl.innerHTML=renderVoterList(voters);
     } else {
       render();
     }
-  },200);
+  },400);
 }
 
 function openVoterDetail(id){
