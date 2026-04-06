@@ -40,7 +40,7 @@
     .inp:focus{border-color:#0f2d5e;}
     select.inp,textarea.inp{background:#fff;}
     textarea.inp{resize:vertical;min-height:80px;line-height:1.5;}
-    .header{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:100;background:linear-gradient(135deg,#0f2d5e,#1a4080);padding:12px 16px 10px;box-shadow:0 2px 16px rgba(15,45,94,0.3);}
+    .header{position:fixed;top:0;left:100%;transform:100%;width:100%;max-width:430px;z-index:100;background:linear-gradient(135deg,#0f2d5e,#1a4080);padding:12px 16px 10px;box-shadow:0 2px 16px rgba(15,45,94,0.3);}
     .bottom-nav{position:fixed;bottom:0;left:0;transform:none;width:100%;max-width:100%;background:#fff;border-top:1px solid #dde4f0;display:flex;z-index:100;box-shadow:0 -4px 20px rgba(15,45,94,0.1);}
     .nav-btn{flex:1;padding:10px 4px 8px;border:none;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;border-top:3px solid transparent;}
     .nav-btn.active{border-top-color:#e6a817;}
@@ -163,7 +163,7 @@ let S = {
   voters:[], feed:[], systemUsers:[],
   barangayVoters:[], searchResults:null, // voters loaded for selected barangay detail view
   stats:{},
-  search:'', filters:{gender:'',ageGroup:'',occupation:'',barangay:'',support:'',voterCategory:''},
+  search:'', filters:{barangay:''},
   filterOpen:false,
   selectedBarangay:null,
   modal:null,
@@ -223,11 +223,7 @@ function buildQuery(){
   
   let q = db.collection('voters');
 
-  if(S.filters.gender) q = q.where('gender','==',S.filters.gender);
-  if(S.filters.ageGroup) q = q.where('ageGroup','==',S.filters.ageGroup);
-  if(S.filters.occupation) q = q.where('occupation','==',S.filters.occupation);
   if(S.filters.support) q = q.where('support','==',S.filters.support);
-  if(S.filters.voterCategory) q = q.where('voterCategory','==',S.filters.voterCategory);
   if(S.filters.barangay) q = q.where('barangay','==',S.filters.barangay);
 
   // Always order by lastName for consistency
@@ -256,28 +252,6 @@ function subscribeVoters(){
   S.unsubs.push(unsub);
 }
 
-async function addVoter(data){
-  const bday=data.birthday||'';
-  const age=bday?calcAge(bday):parseInt(data.manualAge||18);
-  const ag=ageGroup(age);
-  await db.collection('voters').add({
-    firstName:data.firstName, lastName:data.lastName,
-    gender:data.gender, barangay:data.barangay,
-    occupation:data.occupation, contact:data.contact||'',
-    birthday:bday, age, ageGroup:ag,
-    notes:'', support:'Undecided', registered:true,
-    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-    createdBy:S.user.uid,
-  });
-  await db.collection('config').doc('stats').set({
-    total:                                   firebase.firestore.FieldValue.increment(1),
-    [`g_${data.gender.toLowerCase()}`]:      firebase.firestore.FieldValue.increment(1),
-    [`a_${ag.toLowerCase()}`]:               firebase.firestore.FieldValue.increment(1),
-    [`o_${data.occupation}`]:                firebase.firestore.FieldValue.increment(1),
-    [`b_${data.barangay}_count`]:            firebase.firestore.FieldValue.increment(1),
-    support_undecided:                       firebase.firestore.FieldValue.increment(1),
-  },{merge:true});
-}
 
 async function updateSupport(id,newSupport){
   const old=S.voters.find(v=>v.id===id);
