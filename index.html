@@ -222,6 +222,9 @@ function buildQuery(){
   // Only use orderBy when no filters active — avoids composite index requirement
   
   let q = db.collection('voters');
+  if(isCoord()){
+  q = q.where('barangay','==',brgy);
+}
 
   if(S.filters.gender) q = q.where('gender','==',S.filters.gender);
   if(S.filters.occupation) q = q.where('occupation','==',S.filters.occupation);
