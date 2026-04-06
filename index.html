@@ -428,18 +428,14 @@ function subscribeUsers(){
 /* ════════════════════════════════════════════════════
    EXPORT CSV
    ════════════════════════════════════════════════════ */
-async function resetAllSupport(){
-  if(!confirm('Reset ALL voters to Undecided?\n\nThis cannot be undone. The COMELEC categories (*, C, B) will be cleared.\n\nPress OK to confirm.')) return;
-  set({success:'',error:''});
-
   try {
-    // Get all voters in batches of 100
+    // Get all voters in batches of 1000
     let lastDoc = null;
     let total = 0;
     let batchCount = 0;
 
     while(true){
-      let q = db.collection('voters').limit(100);
+      let q = db.collection('voters').limit(2000);
       if(lastDoc) q = q.startAfter(lastDoc);
       const snap = await q.get();
       if(snap.empty) break;
@@ -465,7 +461,7 @@ async function resetAllSupport(){
     await db.collection('config').doc('stats').update({
       support_strong:    0,
       support_leaning:   0,
-      support_undecided: total,
+      support_undecided: 0,
       support_opposition:0,
     });
 
@@ -592,7 +588,6 @@ function renderDashboard(){
         undecided=st.support_undecided||0, opposition=st.support_opposition||0;
   const supT=strong+leaning+undecided+opposition||1;
   const genT=male+female||1;
-  const ageT=youth+adult+senior||1;
   const sp=v=>((v/supT)*100).toFixed(0);
   const gp=v=>((v/genT)*100).toFixed(1);
   const ap=v=>((v/ageT)*100).toFixed(1);
@@ -708,7 +703,6 @@ function renderVoters(){
     {k:'support',l:'Support',opts:['','Strong','Leaning','Undecided','Opposition']},
     {k:'voterCategory',l:'COMELEC Category',opts:['','Regular','Youth','Senior','PWD','Illiterate']},
     {k:'gender',l:'Gender',opts:['','Male','Female']},
-    {k:'ageGroup',l:'Age Group',opts:['','Youth','Adult','Senior']},
     {k:'occupation',l:'Occupation',opts:['',...OCCUPATIONS]},
     ...(isAdmin()?[{k:'barangay',l:'Barangay',opts:['',...BARANGAYS]}]:[]),
   ];
@@ -1209,8 +1203,6 @@ function renderVoterModal(){
         <div class="info-cell"><div class="info-label">🎂 Birthday</div><div class="info-val">${fmtBday(v.birthday)}</div></div>
         <div class="info-cell"><div class="info-label">🎂 Age</div><div class="info-val">${age||'Not set'}${age?' years old':''}</div></div>
         <div class="info-cell"><div class="info-label">👤 Gender</div><div class="info-val">${v.gender}</div></div>
-        <div class="info-cell"><div class="info-label">📊 Age Group</div><div class="info-val">${ag}</div></div>
-        <div class="info-cell"><div class="info-label">📋 COMELEC Category</div><div class="info-val">${v.voterCategory||'Regular'}</div></div>
         <div class="info-cell"><div class="info-label">🗳️ Precinct</div><div class="info-val">${v.precinct||'—'}</div></div>
         <div class="info-cell" style="grid-column:span 2"><div class="info-label">📱 Contact</div><div class="info-val">${v.contact||'Not provided'}</div></div>
       </div>`}
@@ -1375,7 +1367,7 @@ function doSearch(val){
 
       try{
         // FULL TEXT LIKE SEARCH (multi-field)
-        const snap = await db.collection('voters').limit(500).get();
+        const snap = await db.collection('voters').limit(2000).get();
 
         const all = snap.docs.map(d=>({id:d.id,...d.data()}));
 
