@@ -18,7 +18,15 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-    body{font-family:'Outfit',sans-serif;background:#eef2fb;max-width:430px;margin:0 auto;min-height:100vh;overflow-x:hidden;}
+    body{
+  font-family:'Outfit',sans-serif;
+  background:#eef2fb;
+  width:100%;
+  max-width:100%;
+  margin:0;
+  min-height:100dvh;
+  overflow-x:hidden;
+}
     @supports(padding-top:env(safe-area-inset-top)){
       .header{padding-top:max(12px,env(safe-area-inset-top));}
       .content{padding-top:max(70px,calc(56px + env(safe-area-inset-top)));}
@@ -32,7 +40,7 @@
     select.inp,textarea.inp{background:#fff;}
     textarea.inp{resize:vertical;min-height:80px;line-height:1.5;}
     .header{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:100;background:linear-gradient(135deg,#0f2d5e,#1a4080);padding:12px 16px 10px;box-shadow:0 2px 16px rgba(15,45,94,0.3);}
-    .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #dde4f0;display:flex;z-index:100;box-shadow:0 -4px 20px rgba(15,45,94,0.1);}
+    .bottom-nav{position:fixed;bottom:0;left:0;transform:none;width:100%;max-width:100%;background:#fff;border-top:1px solid #dde4f0;display:flex;z-index:100;box-shadow:0 -4px 20px rgba(15,45,94,0.1);}
     .nav-btn{flex:1;padding:10px 4px 8px;border:none;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;border-top:3px solid transparent;}
     .nav-btn.active{border-top-color:#e6a817;}
     .nav-btn .ni{font-size:19px;}
@@ -152,7 +160,7 @@ let S = {
   screen:'login', user:null, profile:null,
   tab:'dashboard',
   voters:[], feed:[], systemUsers:[],
-  barangayVoters:[], searchResults:null,, // voters loaded for selected barangay detail view
+  barangayVoters:[], searchResults:null, // voters loaded for selected barangay detail view
   stats:{},
   search:'', filters:{gender:'',ageGroup:'',occupation:'',barangay:'',support:'Undecided',voterCategory:''},
   filterOpen:false,
@@ -1359,46 +1367,44 @@ function resubVoters(){
 }
 
 let searchTimer=null;
+
 function doSearch(val){
-  S.search=val;
+  S.search = val.toLowerCase().trim();
   clearTimeout(searchTimer);
-  searchTimer=setTimeout(async ()=>{
-    if(val.length>=3){
-      // Search Firestore for lastName matching
+
+  searchTimer = setTimeout(async ()=>{
+    if(S.search.length >= 2){
+
       try{
-        const q=val.trim();
-        // Query by lastName prefix (case-sensitive in Firestore)
-        // Use title case to match stored format
-        const titleQ=q.charAt(0).toUpperCase()+q.slice(1).toLowerCase();
-        const snap=await db.collection('voters')
-          .orderBy('lastName')
-          .startAt(titleQ)
-          .endAt(titleQ+'')
-          .limit(200)
-          .get();
-        // Also search in currently loaded voters
-        const loaded=filteredVoters();
-        const fromFirestore=snap.docs.map(d=>({id:d.id,...d.data()}));
-        // Merge without duplicates
-        const ids=new Set(loaded.map(v=>v.id));
-        const merged=[...loaded,...fromFirestore.filter(v=>!ids.has(v.id))];
-        merged.sort((a,b)=>(a.lastName||'').localeCompare(b.lastName||''));
-        S.searchResults=merged;
+        // FULL TEXT LIKE SEARCH (multi-field)
+        const snap = await db.collection('voters').limit(500).get();
+
+        const all = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+        const filtered = all.filter(v=>{
+          const full = `${v.firstName||''} ${v.lastName||''} ${v.middleName||''}`.toLowerCase();
+          return full.includes(S.search) ||
+                 (v.barangay||'').toLowerCase().includes(S.search) ||
+                 (v.occupation||'').toLowerCase().includes(S.search) ||
+                 (v.notes||'').toLowerCase().includes(S.search) ||
+                 (v.precinct||'').toLowerCase().includes(S.search);
+        });
+
+        filtered.sort((a,b)=>(a.lastName||'').localeCompare(b.lastName||''));
+        S.searchResults = filtered;
+
       }catch(e){
-        S.searchResults=null;
-        console.warn('Search error:',e);
+        console.warn('Search error:', e);
+        S.searchResults = null;
       }
+
     } else {
-      S.searchResults=null;
+      S.searchResults = null;
     }
-    const listEl=document.getElementById('voter-list');
-    if(listEl){
-      const voters=S.searchResults||filteredVoters();
-      listEl.innerHTML=renderVoterList(voters);
-    } else {
-      render();
-    }
-  },400);
+
+    render();
+
+  },300);
 }
 
 function openVoterDetail(id){
