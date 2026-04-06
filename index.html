@@ -956,104 +956,144 @@ async function doPost(type){
    RENDER — ADMIN TAB
    ════════════════════════════════════════════════════ */
 function renderAdmin(){
-  if(!isAdmin()) return '<div class="tab-content"><div class="card">Access denied.</div></div>';
-  const sec=S.adminSec;
+  if(!isAdmin()) return '<div class="tab-content"><div class="card" style="text-align:center;padding:30px;color:#64748b;">⚠️ Admin access only.</div></div>';
+  const sec = S.adminSec;
+  const users = S.systemUsers||[];
+  const st = S.stats||{};
+
+  // ── OVERVIEW
+  const overviewHtml = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div style="background:linear-gradient(135deg,#0f2d5e,#0f2d5ecc);border-radius:16px;padding:14px 16px;color:#fff;box-shadow:0 4px 16px #0f2d5e44;">
+        <div style="font-size:22px;margin-bottom:4px;">📁</div>
+        <div style="font-size:24px;font-weight:800;">${(st.total||0).toLocaleString()}</div>
+        <div style="font-size:11px;opacity:.85;">Total Voters in DB</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#0a6b6b,#0a6b6bcc);border-radius:16px;padding:14px 16px;color:#fff;box-shadow:0 4px 16px #0a6b6b44;">
+        <div style="font-size:22px;margin-bottom:4px;">👤</div>
+        <div style="font-size:24px;font-weight:800;">${users.length}</div>
+        <div style="font-size:11px;opacity:.85;">System Users</div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:#0d1b2e;margin-bottom:10px;">System Status</div>
+      ${[
+        {l:'Database',v:'✅ Firebase Firestore'},
+        {l:'Auth',v:'✅ Email / Password'},
+        {l:'Offline Mode',v:'✅ Active (IndexedDB)'},
+        {l:'Encryption',v:'✅ TLS + AES-256'},
+        {l:'Logged in as',v:S.user?.email||'—'},
+        {l:'Role',v:S.profile?.role||'—'},
+      ].map(x=>`
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #dde4f0;">
+          <span style="font-size:13px;color:#0d1b2e;">${x.l}</span>
+          <span style="font-size:13px;font-weight:700;color:#0f2d5e;">${x.v}</span>
+        </div>`).join('')}
+    </div>`;
+
+  // ── USERS
+  const usersHtml = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:700;color:#0d1b2e;">System Users (${users.length})</div>
+        <button onclick="openAddUser()" style="padding:8px 16px;border-radius:20px;border:none;background:linear-gradient(135deg,#e6a817,#f5c842);color:#0f2d5e;font-size:12px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;">＋ Add User</button>
+      </div>
+      ${users.length===0?'<div style="font-size:13px;color:#64748b;text-align:center;padding:24px;">No users yet. Tap ＋ Add User above.</div>':''}
+      ${users.map(u=>`
+        <div style="padding:12px 0;border-bottom:1px solid #dde4f0;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:38px;height:38px;border-radius:10px;background:#0f2d5e15;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;">${u.role==='admin'?'🛡️':u.role==='coordinator'?'📋':'🤝'}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:14px;font-weight:700;color:#0d1b2e;">${u.name||'—'}</div>
+              <div style="font-size:11px;color:#64748b;">${u.role||'—'}${u.barangay?' · '+u.barangay:''}</div>
+              <div style="font-size:11px;color:#64748b;">${u.email||''}</div>
+            </div>
+            <span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;background:${u.active!==false?'#05996922':'#64748b22'};color:${u.active!==false?'#059669':'#64748b'};">${u.active!==false?'active':'inactive'}</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <button onclick="openEditUser('${u.id}')" style="flex:1;padding:7px;border-radius:8px;border:1px solid #dde4f0;background:#fff;color:#0f2d5e;font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✏️ Edit</button>
+            <button onclick="toggleUserActive('${u.id}',${u.active!==false})" style="flex:1;padding:7px;border-radius:8px;border:1px solid ${u.active!==false?'#e6a817':'#059669'};background:#fff;color:${u.active!==false?'#e6a817':'#059669'};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">${u.active!==false?'⏸ Deactivate':'▶ Activate'}</button>
+            <button onclick="deleteUser('${u.id}','${(u.name||u.email||'').replace(/'/g,'')}')" style="flex:1;padding:7px;border-radius:8px;border:1px solid #dc2626;background:#fff;color:#dc2626;font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">🗑 Delete</button>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="card" style="background:#0f2d5e06;border:1px solid #dde4f0;">
+      <div style="font-size:12px;color:#64748b;line-height:1.7;">
+        <strong style="color:#0f2d5e;">How to add a coordinator:</strong><br>
+        1. Firebase Console → Authentication → Add user<br>
+        2. Copy the UID shown<br>
+        3. Tap ＋ Add User above → paste UID → set role to coordinator → assign barangay<br>
+        4. Share the app URL + email + password via Viber
+      </div>
+    </div>`;
+
+  // ── REPORTS
+  const reportsHtml = `
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:#0d1b2e;margin-bottom:4px;">Export Reports</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:14px;">Downloads as CSV — opens in Excel</div>
+      ${S.success?'<div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:10px;padding:10px 14px;color:#059669;font-size:13px;margin-bottom:12px;">'+S.success+'</div>':''}
+      ${S.error?'<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:10px 14px;color:#dc2626;font-size:13px;margin-bottom:12px;">'+S.error+'</div>':''}
+      ${[
+        {icon:'📋',label:'Full Voter Registry',desc:'All records — CSV',action:'exportVotersCSV()'},
+        {icon:'📊',label:'Support Analysis',desc:'Count by support level',action:'exportSupportCSV()'},
+        {icon:'🏘️',label:'Barangay Summary',desc:'Voter count per barangay',action:'exportBarangayCSV()'},
+      ].map(r=>`
+        <button onclick="${r.action}" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 0;background:transparent;border:none;border-bottom:1px solid #dde4f0;cursor:pointer;text-align:left;">
+          <span style="font-size:22px;flex-shrink:0;">${r.icon}</span>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:600;color:#0d1b2e;">${r.label}</div>
+            <div style="font-size:11px;color:#64748b;">${r.desc}</div>
+          </div>
+          <span style="font-size:18px;color:#e6a817;">⬇</span>
+        </button>`).join('')}
+    </div>
+    <div class="card" style="background:#fef3c710;border:1px solid #fbbf2440;">
+      <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:8px;">⚠️ Data Operations</div>
+      <button onclick="resetAllSupport()" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 0;background:transparent;border:none;cursor:pointer;text-align:left;">
+        <span style="font-size:22px;flex-shrink:0;">🔄</span>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:600;color:#dc2626;">Reset All Support to Undecided</div>
+          <div style="font-size:11px;color:#64748b;">Sets every voter back to Undecided. Cannot be undone.</div>
+        </div>
+      </button>
+    </div>`;
+
+  // ── SETTINGS
+  const settingsHtml = `
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:#0d1b2e;margin-bottom:12px;">System Configuration</div>
+      ${[
+        {k:'vol',  l:'Allow Volunteer Edits',  d:'Let volunteers edit voter records'},
+        {k:'email',l:'Email Notifications',    d:'Send updates via email'},
+        {k:'sms',  l:'SMS Alerts',             d:'Send alerts via SMS'},
+        {k:'tfa',  l:'Two-Factor Auth',        d:'Require 2FA for admin logins'},
+        {k:'enc',  l:'Data Encryption',        d:'AES-256 (always on)'},
+      ].map(s=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid #dde4f0;">
+          <div>
+            <div style="font-size:13px;color:#0d1b2e;font-weight:500;">${s.l}</div>
+            <div style="font-size:11px;color:#64748b;">${s.d}</div>
+          </div>
+          <div onclick="S.toggles['${s.k}']=!S.toggles['${s.k}'];render()"
+            style="width:46px;height:26px;border-radius:13px;background:${S.toggles[s.k]?'#0f2d5e':'#dde4f0'};position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;margin-left:12px;">
+            <div style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${S.toggles[s.k]?23:3}px;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,0.2);"></div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+
+  const bodies = {overview:overviewHtml, users:usersHtml, reports:reportsHtml, settings:settingsHtml};
+
   return `
   <div class="tab-content">
     <div class="pill-tabs">
       ${['overview','users','reports','settings'].map(s=>`
-        <button class="pill-tab" onclick="S.adminSec='${s}';render()" style="background:${sec===s?C.navy:'#fff'};color:${sec===s?'#fff':C.muted};box-shadow:${sec===s?'none':'0 1px 4px rgba(0,0,0,0.08)'};">${s.charAt(0).toUpperCase()+s.slice(1)}</button>`).join('')}
-    </div>
-
-    ${sec==='overview'?`
-    <div class="stat-grid">
-      ${sc('📁','Total Voters in DB',(S.stats.total||0).toLocaleString(),C.navy)}
-      ${sc('👤','System Users',S.systemUsers.length.toString(),C.teal)}
-    </div>
-    <div class="card">
-      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:10px;">System Status</div>
-      ${[{l:'Database',v:'✅ Firebase Firestore'},{l:'Auth',v:'✅ Email / Password'},
-         {l:'Offline Mode',v:'✅ Active'},{l:'Encryption',v:'✅ TLS + AES-256'},
-         {l:'Logged in as',v:S.user?.email||'—'},{l:'Role',v:S.profile?.role||'—'},
-      ].map(x=>`
-        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid ${C.border};">
-          <span style="font-size:13px;color:${C.text};">${x.l}</span>
-          <span style="font-size:13px;font-weight:700;color:${C.navy};">${x.v}</span>
-        </div>`).join('')}
-    </div>`:''}
-
-    ${sec==='users'?`
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <div style="font-size:13px;font-weight:700;color:${C.text};">System Users</div>
-        <button onclick="openAddUser()" style="padding:6px 13px;border-radius:20px;border:none;background:${C.gold}22;color:${C.navy};font-size:11px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;">＋ Add User</button>
-      </div>
-      ${S.systemUsers.length===0?`<div style="font-size:13px;color:${C.muted};text-align:center;padding:20px;">No users yet.</div>`:''}
-      ${S.systemUsers.map(u=>`
-        <div style="padding:10px 0;border-bottom:1px solid ${C.border};">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:36px;height:36px;border-radius:10px;background:${C.navy}15;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">${u.role==='admin'?'🛡️':u.role==='coordinator'?'📋':'🤝'}</div>
-            <div style="flex:1;">
-              <div style="font-size:13px;font-weight:600;color:${C.text};">${u.name||u.email}</div>
-              <div style="font-size:11px;color:${C.muted};">${u.role}${u.barangay?' · '+u.barangay:''}</div>
-              <div style="font-size:11px;color:${C.muted};margin-top:1px;">${u.email||''}</div>
-            </div>
-            <span class="badge" style="background:${u.active!==false?C.success:C.muted}22;color:${u.active!==false?C.success:C.muted};">${u.active!==false?'active':'inactive'}</span>
-          </div>
-          <div style="display:flex;gap:7px;margin-top:9px;">
-            <button onclick="openEditUser('${u.id}')" style="flex:1;padding:7px;border-radius:8px;border:1px solid ${C.border};background:transparent;color:${C.navy};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✏️ Edit</button>
-            <button onclick="toggleUserActive('${u.id}',${u.active!==false})" style="flex:1;padding:7px;border-radius:8px;border:1px solid ${u.active!==false?C.gold:C.success};background:transparent;color:${u.active!==false?C.gold:C.success};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">${u.active!==false?'⏸ Deactivate':'▶ Activate'}</button>
-            <button onclick="deleteUser('${u.id}','${(u.name||u.email).replace(/'/g,'')}') " style="flex:1;padding:7px;border-radius:8px;border:1px solid ${C.danger};background:transparent;color:${C.danger};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">🗑 Delete</button>
-          </div>
-        </div>`).join('')}
-    </div>
-    <div class="card" style="background:${C.navy}06;border:1px solid ${C.border};">
-      <div style="font-size:12px;color:${C.muted};line-height:1.7;">
-        <strong style="color:${C.navy};">Coordinator access:</strong> Each coordinator can only view, add, and edit voters in their assigned barangay. Deactivating a user blocks their login immediately.
-      </div>
-    </div>`:''}
-
-    ${sec==='reports'?`
-    <div class="card">
-      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:4px;">Export Reports</div>
-      <div style="font-size:12px;color:${C.muted};margin-bottom:14px;">Downloads as CSV — opens in Excel</div>
-      ${S.success?`<div class="ok-box">${S.success}</div>`:''}
-      ${S.error?`<div class="err-box">${S.error}</div>`:''}
-      ${[{icon:'📋',label:'Full Voter Registry',desc:'All fields including birthday & notes',action:'exportVotersCSV()'},
-         {icon:'📊',label:'Support Analysis',desc:'Count by support level',action:'exportSupportCSV()'},
-         {icon:'🏘️',label:'Barangay Summary',desc:'Voter count per barangay',action:'exportBarangayCSV()'},
-      ].map((r,i,a)=>`
-        <button onclick="${r.action}" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 0;background:transparent;border:none;border-bottom:1px solid ${C.border};cursor:pointer;text-align:left;">
-          <span style="font-size:22px;flex-shrink:0;">${r.icon}</span>
-          <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:${C.text};">${r.label}</div><div style="font-size:11px;color:${C.muted};">${r.desc}</div></div>
-          <span style="font-size:18px;color:${C.gold};">⬇</span>
+        <button class="pill-tab" onclick="S.adminSec='${s}';render()"
+          style="background:${sec===s?'#0f2d5e':'#fff'};color:${sec===s?'#fff':'#64748b'};box-shadow:${sec===s?'none':'0 1px 4px rgba(0,0,0,0.08)'};">
+          ${s.charAt(0).toUpperCase()+s.slice(1)}
         </button>`).join('')}
     </div>
-    <div class="card" style="background:#fef3c710;border:1px solid #fbbf2440;">
-      <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:4px;">⚠️ Data Operations</div>
-      <div style="font-size:12px;color:${C.muted};margin-bottom:14px;">Bulk actions on voter records — use with caution</div>
-      <button onclick="resetAllSupport()" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 0;background:transparent;border:none;border-bottom:1px solid ${C.border};cursor:pointer;text-align:left;">
-        <span style="font-size:22px;flex-shrink:0;">🔄</span>
-        <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#dc2626;">Reset All Support to Undecided</div><div style="font-size:11px;color:${C.muted};">Sets every voter's support level back to Undecided. Cannot be undone.</div></div>
-      </button>
-    </div>`:''}
-
-    ${sec==='settings'?`
-    <div class="card">
-      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:12px;">System Configuration</div>
-      ${[{k:'vol',l:'Allow Volunteer Edits',d:'Let volunteers edit voter records'},
-         {k:'email',l:'Email Notifications',d:'Send updates via email'},
-         {k:'sms',l:'SMS Alerts',d:'Send alerts via SMS'},
-         {k:'tfa',l:'Two-Factor Authentication',d:'Require 2FA for admin logins'},
-         {k:'enc',l:'Data Encryption',d:'AES-256 (always on)'},
-      ].map(s=>`
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid ${C.border};">
-          <div><div style="font-size:13px;color:${C.text};font-weight:500;">${s.l}</div><div style="font-size:11px;color:${C.muted};">${s.d}</div></div>
-          <div class="toggle" style="background:${S.toggles[s.k]?C.navy:C.border};margin-left:12px;" onclick="S.toggles['${s.k}']=!S.toggles['${s.k}'];render()">
-            <div class="toggle-dot" style="left:${S.toggles[s.k]?23:3}px;"></div>
-          </div>
-        </div>`).join('')}
-    </div>`:''}
+    ${bodies[sec]||''}
   </div>`;
 }
 
@@ -1396,7 +1436,7 @@ function renderMain(){
   else if(S.tab==='feed')      body=renderFeed();
   else if(S.tab==='admin')     body=renderAdmin();
   const offlineBar = typeof getOfflineBar === 'function' ? getOfflineBar() : '';
-  return `${renderHeader()}${offlineBar}<div class="content" style="padding-top:${isOnline?'0':'28px'}">${body}</div>${renderNav()}${renderModal()}`;
+  return `${renderHeader()}${offlineBar}<div class="content">${body}</div>${renderNav()}${renderModal()}`;
 }
 
 /* ════════════════════════════════════════════════════
