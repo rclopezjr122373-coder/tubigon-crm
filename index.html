@@ -210,7 +210,7 @@ async function doLogout(){
    ════════════════════════════════════════════════════ */
 function doSearch(query){
   S.search = query;
-  S.searchResults = null;
+  S.searchResults = query ? filteredVoters() : null;  // ← SET searchResults!
   render();
 }
 
@@ -227,11 +227,6 @@ function resubVoters(){
     return db.collection('voters').limit(0);
   }
 
-  const hasFilter = isCoord() ||
-    S.filters.barangay ;
-
-  // Only use orderBy when no filters active — avoids composite index requirement
-  
   let q = db.collection('voters');
   if(isCoord()){
   q = q.where('barangay','==',brgy);
@@ -249,13 +244,7 @@ function resubVoters(){
   return q;
 }
 
-  // Always order by lastName for consistency
-  q = q.orderBy('lastName').limit(2000);
-
-  return q;
-}
-
-function subscribeVoters(){
+ function subscribeVoters(){
   const unsub=buildQuery().onSnapshot(snap=>{
     const voters=snap.docs.map(d=>({id:d.id,...d.data()}));
     // Sort client-side by lastName since orderBy is skipped when filtering
