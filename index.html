@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,26 +11,13 @@
   <meta name="description" content="Voter Management System — Tubigon Municipality, Bohol">
   <link rel="manifest" href="./manifest.json">
   <title>TubigonCRM</title>
-  <!-- v3.2 -->
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-    body{
-  font-family:'Outfit',sans-serif;
-  background:#eef2fb;
-  width:100%;
-  max-width:100%;
-  margin:0;
-  min-height:100dvh;
-  overflow-x:hidden;
-}
-    
-      .content{padding-top:70px;padding-bottom:80px;}
-      .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #dde4f0;display:flex;z-index:100;box-shadow:0 -4px 20px rgba(15,45,94,0.1);min-height:56px;}
-    }
+    body{font-family:'Outfit',sans-serif;background:#eef2fb;max-width:430px;margin:0 auto;min-height:100vh;overflow-x:hidden;}
     #app{min-height:100vh;}
     .card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(15,45,94,0.08);margin-bottom:12px;}
     .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.3px;white-space:nowrap;}
@@ -40,17 +26,17 @@
     select.inp,textarea.inp{background:#fff;}
     textarea.inp{resize:vertical;min-height:80px;line-height:1.5;}
     .header{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:100;background:linear-gradient(135deg,#0f2d5e,#1a4080);padding:12px 16px 10px;box-shadow:0 2px 16px rgba(15,45,94,0.3);}
-    
+    .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #dde4f0;display:flex;z-index:100;box-shadow:0 -4px 20px rgba(15,45,94,0.1);}
     .nav-btn{flex:1;padding:10px 4px 8px;border:none;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;border-top:3px solid transparent;}
     .nav-btn.active{border-top-color:#e6a817;}
     .nav-btn .ni{font-size:19px;}
     .nav-btn .nl{font-size:9.5px;color:#64748b;font-weight:400;font-family:'Outfit',sans-serif;}
     .nav-btn.active .nl{color:#0f2d5e;font-weight:700;}
-    .content{padding-top:70px;padding-bottom:80px;}
+    .content{padding:64px 0 72px;}
     .tab-content{padding:16px;}
     .voter-card{background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:9px;box-shadow:0 2px 10px rgba(15,45,94,0.07);display:flex;align-items:center;gap:12px;cursor:pointer;}
     .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;display:flex;flex-direction:column;justify-content:flex-end;}
-    .modal-sheet{background:#fff;border-radius:24px 24px 0 0;padding:24px;max-height:92vh;overflow-y:auto;position:relative;}
+    .modal-sheet{background:#fff;border-radius:24px 24px 0 0;padding:24px;max-height:92vh;overflow-y:auto;}
     .modal-handle{width:38px;height:4px;background:#dde4f0;border-radius:2px;margin:0 auto 20px;}
     .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
     .stat-card{border-radius:16px;padding:14px 16px;color:#fff;}
@@ -106,8 +92,8 @@ const BARANGAYS = [
   "Bagongbanua","Banlasan","Batasan","Bilangbilangan","Bosongon",
   "Buenos Aires","Bunacan","Cabulijan","Cahayag","Cawayanan",
   "Centro","Genonocan","Guiwanon","Ilijan Norte","Ilijan Sur",
-  "Pandan","Libertad","Macaas","Matabao","Mocaboc",
-  "Panadtaran","Panaytayon","Pangapasan","Pinayagan Norte","Pinayagan Sur",
+  "Libertad","Macaas","Matabao","Mocaboc",
+  "Panadtaran","Panaytayon","Pandan","Pangapasan","Pinayagan Norte","Pinayagan Sur",
   "Pooc Occidental","Pooc Oriental","Potohan","Talenceras","Tanawan",
   "Tinangnan","Ubay","Ubojan","Villanueva"
 ];
@@ -129,10 +115,6 @@ function calcAge(birthday){
   let age=n.getFullYear()-b.getFullYear();
   if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate())) age--;
   return age;
-}
-function ageGroup(age){
-  if(age===null||age===undefined) return 'Adult';
-  return age<30?'Youth':age>=60?'Senior':'Adult';
 }
 function fmtBday(b){
   if(!b) return 'Not set';
@@ -160,7 +142,7 @@ let S = {
   screen:'login', user:null, profile:null,
   tab:'dashboard',
   voters:[], feed:[], systemUsers:[],
-  barangayVoters:[], searchResults:null, // voters loaded for selected barangay detail view
+  barangayVoters:[], // voters loaded for selected barangay detail view
   stats:{},
   search:'', filters:{gender:'',occupation:'',barangay:'',support:'',voterCategory:''},
   filterOpen:false,
@@ -207,60 +189,7 @@ async function doLogout(){
 /* ════════════════════════════════════════════════════
    FIRESTORE — VOTERS
    ════════════════════════════════════════════════════ */
-let _searchTimer = null;
-function doSearch(query){
-  S.search = query;
-  clearTimeout(_searchTimer);
-  if(!query){ S.searchResults=null; render(); return; }
-
-  // Immediately filter loaded voters (instant feedback)
-  S.searchResults = filteredVoters();
-
-  // Then query Firestore for full results if 3+ chars
-  if(query.length >= 3){
-    _searchTimer = setTimeout(async ()=>{
-      try{
-        const q = query.trim();
-        const titleQ = q.charAt(0).toUpperCase()+q.slice(1).toLowerCase();
-        const snap = await db.collection('voters')
-          .orderBy('lastName')
-          .startAt(titleQ)
-          .endAt(titleQ+'')
-          .limit(200)
-          .get();
-        const fromDB = snap.docs.map(d=>({id:d.id,...d.data()}));
-        // If coordinator, filter to their barangay
-        const filtered = isCoord()
-          ? fromDB.filter(v=>v.barangay===coordBrgy())
-          : fromDB;
-        // Merge with existing search results
-        const existing = S.searchResults||[];
-        const ids = new Set(existing.map(v=>v.id));
-        const merged = [...existing,...filtered.filter(v=>!ids.has(v.id))];
-        merged.sort((a,b)=>(a.lastName||'').localeCompare(b.lastName||''));
-        S.searchResults = merged;
-        // Only update the list, not the whole page (keeps keyboard open)
-        const listEl = document.getElementById('voter-list');
-        if(listEl) listEl.innerHTML = renderVoterList(S.searchResults);
-        else render();
-      }catch(e){
-        console.warn('Search error:',e.message);
-      }
-    }, 400);
-  } else {
-    // Just update list
-    const listEl = document.getElementById('voter-list');
-    if(listEl) listEl.innerHTML = renderVoterList(S.searchResults||[]);
-    else render();
-  }
-}
-
-function resubVoters(){
-  S.unsubs.forEach(u=>u());
-  S.unsubs = [];
-  subscribeVoters();
-}
-  function buildQuery(){
+function buildQuery(){
   const brgy = coordBrgy();
 
   // If coordinator has no barangay assigned, return empty query
@@ -268,30 +197,30 @@ function resubVoters(){
     return db.collection('voters').limit(0);
   }
 
-  let q = db.collection('voters');
+  const hasFilter = isCoord() ||
+    S.filters.barangay || S.filters.gender || S.filters.ageGroup ||
+    S.filters.occupation || S.filters.support;
 
-  // Apply barangay filter FIRST (most selective)
+  // Only use orderBy when no filters active — avoids composite index requirement
+  let q = hasFilter
+    ? db.collection('voters')
+    : db.collection('voters').orderBy('lastName');
+
   if(isCoord()){
-    q = q.where('barangay','==',brgy);
-  } else if(S.filters.barangay){
-    q = q.where('barangay','==',S.filters.barangay);
+    // Coordinator locked to their barangay — exact match required
+    q = q.where('barangay','==', brgy);
+  } else {
+    if(S.filters.barangay) q=q.where('barangay','==',S.filters.barangay);
   }
-
-  // Only add ONE additional where clause to avoid composite index errors
-  // Priority: support > gender > ageGroup > occupation > voterCategory
-  if(S.filters.support)          q = q.where('support','==',S.filters.support);
-  else if(S.filters.gender)      q = q.where('gender','==',S.filters.gender);
-  else if(S.filters.ageGroup)    q = q.where('ageGroup','==',S.filters.ageGroup);
-  else if(S.filters.occupation)  q = q.where('occupation','==',S.filters.occupation);
-  else if(S.filters.voterCategory) q = q.where('voterCategory','==',S.filters.voterCategory);
-
-  return q.limit(150);
+  if(S.filters.gender)     q=q.where('gender','==',S.filters.gender);
+   if(S.filters.occupation)    q=q.where('occupation','==',S.filters.occupation);
+  if(S.filters.support)       q=q.where('support','==',S.filters.support);
+  return q.limit(1000);
 }
 
- function subscribeVoters(){
+function subscribeVoters(){
   const unsub=buildQuery().onSnapshot(snap=>{
     const voters=snap.docs.map(d=>({id:d.id,...d.data()}));
-    voters.sort((a,b)=>(a.lastName||'').localeCompare(b.lastName||''));
     // Sort client-side by lastName since orderBy is skipped when filtering
     voters.sort((a,b)=>(a.lastName||'').localeCompare(b.lastName||''));
     S.voters=voters;
@@ -317,8 +246,8 @@ async function addVoter(data){
     firstName:data.firstName, lastName:data.lastName,
     gender:data.gender, barangay:data.barangay,
     occupation:data.occupation, contact:data.contact||'',
-    birthday:bday, age, ageGroup:ag,
-    notes:'', support:'Undecided', registered:true,
+    birthday:bday, age,
+    notes:'', support:'', registered:true,
     createdAt:firebase.firestore.FieldValue.serverTimestamp(),
     createdBy:S.user.uid,
   });
@@ -356,11 +285,10 @@ async function saveVoterEdits(id){
   const con = document.getElementById('ed-con')?.value.trim();
   if(!fn||!ln){ S.error='First and last name are required.'; render(); return; }
   const age  = bday?calcAge(bday):null;
-  const ag   = ageGroup(age);
-  try{
+    try{
     await db.collection('voters').doc(id).update({
       firstName:fn, lastName:ln, middleName:mn||'',
-      birthday:bday||'', age:age, ageGroup:ag,
+      birthday:bday||'', age:age,
       gender:gen, occupation:occ, contact:con||'',
       updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
       updatedBy:S.user.uid,
@@ -368,7 +296,7 @@ async function saveVoterEdits(id){
     // Update local modal data
     if(S.modal?.data?.id===id){
       Object.assign(S.modal.data,{firstName:fn,lastName:ln,middleName:mn||'',
-        birthday:bday||'',age,ageGroup:ag,gender:gen,occupation:occ,contact:con||''});
+        birthday:bday||'',age,gender:gen,occupation:occ,contact:con||''});
       S.modal.editMode=false;
     }
     S.success='Record updated ✓'; S.error='';
@@ -391,15 +319,12 @@ async function saveNotes(id,notes){
 function filteredVoters(){
   if(!S.search) return S.voters;
   const q=S.search.toLowerCase();
-  // Search across all loaded voters
-  return S.voters.filter(v=>{
-    const fullName=`${v.lastName||''} ${v.firstName||''} ${v.middleName||''}`.toLowerCase();
-    return fullName.includes(q)||
-      (v.barangay||'').toLowerCase().includes(q)||
-      (v.occupation||'').toLowerCase().includes(q)||
-      (v.notes||'').toLowerCase().includes(q)||
-      (v.precinct||'').toLowerCase().includes(q);
-  });
+  return S.voters.filter(v=>
+    `${v.firstName} ${v.lastName}`.toLowerCase().includes(q)||
+    (v.barangay||'').toLowerCase().includes(q)||
+    (v.occupation||'').toLowerCase().includes(q)||
+    (v.notes||'').toLowerCase().includes(q)
+  );
 }
 
 /* ════════════════════════════════════════════════════
@@ -753,7 +678,7 @@ function sc(icon,label,value,color,sub=''){
    RENDER — VOTERS TAB
    ════════════════════════════════════════════════════ */
 function renderVoters(){
-  const voters=S.searchResults||filteredVoters();
+  const voters=filteredVoters();
   const role=S.profile?.role;
   const hf=Object.values(S.filters).some(Boolean);
   // Filter options — coordinators cannot change barangay filter
@@ -761,6 +686,7 @@ function renderVoters(){
     {k:'support',l:'Support',opts:['','Strong','Leaning','Undecided','Opposition']},
     {k:'voterCategory',l:'COMELEC Category',opts:['','Regular','Youth','Senior','PWD','Illiterate']},
     {k:'gender',l:'Gender',opts:['','Male','Female']},
+    {k:'ageGroup',l:'Age Group',opts:['','Youth','Adult','Senior']},
     {k:'occupation',l:'Occupation',opts:['',...OCCUPATIONS]},
     ...(isAdmin()?[{k:'barangay',l:'Barangay',opts:['',...BARANGAYS]}]:[]),
   ];
@@ -792,7 +718,8 @@ function renderVoters(){
             </select>
           </div>`).join('')}
       </div>
-      ${hf?`<button onclick="S.filters={gender:'',occupation:'',barangay:'',support:'',voterCategory:''};...
+      ${hf?`<button onclick="S.filters={gender:'',ageGroup:'',occupation:'',barangay:'',support:'',voterCategory:''};resubVoters();" style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid ${C.border};background:transparent;color:${C.danger};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✕ Clear Filters</button>`:''}
+    </div>`:''}
 
     <div id="voter-list">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -1021,144 +948,103 @@ async function doPost(type){
    RENDER — ADMIN TAB
    ════════════════════════════════════════════════════ */
 function renderAdmin(){
-  if(!isAdmin()) return '<div class="tab-content"><div class="card" style="text-align:center;padding:30px;color:#64748b;">⚠️ Admin access only.</div></div>';
-  const sec = S.adminSec;
-  const users = S.systemUsers||[];
-  const st = S.stats||{};
-
-  // ── OVERVIEW
-  const overviewHtml = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
-      <div style="background:linear-gradient(135deg,#0f2d5e,#0f2d5ecc);border-radius:16px;padding:14px 16px;color:#fff;box-shadow:0 4px 16px #0f2d5e44;">
-        <div style="font-size:22px;margin-bottom:4px;">📁</div>
-        <div style="font-size:24px;font-weight:800;">${(st.total||0).toLocaleString()}</div>
-        <div style="font-size:11px;opacity:.85;">Total Voters in DB</div>
-      </div>
-      <div style="background:linear-gradient(135deg,#0a6b6b,#0a6b6bcc);border-radius:16px;padding:14px 16px;color:#fff;box-shadow:0 4px 16px #0a6b6b44;">
-        <div style="font-size:22px;margin-bottom:4px;">👤</div>
-        <div style="font-size:24px;font-weight:800;">${users.length}</div>
-        <div style="font-size:11px;opacity:.85;">System Users</div>
-      </div>
-    </div>
-    <div class="card">
-      <div style="font-size:13px;font-weight:700;color:#0d1b2e;margin-bottom:10px;">System Status</div>
-      ${[
-        {l:'Database',v:'✅ Firebase Firestore'},
-        {l:'Auth',v:'✅ Email / Password'},
-        {l:'Offline Mode',v:'✅ Active (IndexedDB)'},
-        {l:'Encryption',v:'✅ TLS + AES-256'},
-        {l:'Logged in as',v:S.user?.email||'—'},
-        {l:'Role',v:S.profile?.role||'—'},
-      ].map(x=>`
-        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #dde4f0;">
-          <span style="font-size:13px;color:#0d1b2e;">${x.l}</span>
-          <span style="font-size:13px;font-weight:700;color:#0f2d5e;">${x.v}</span>
-        </div>`).join('')}
-    </div>`;
-
-  // ── USERS
-  const usersHtml = `
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-        <div style="font-size:13px;font-weight:700;color:#0d1b2e;">System Users (${users.length})</div>
-        <button onclick="openAddUser()" style="padding:8px 16px;border-radius:20px;border:none;background:linear-gradient(135deg,#e6a817,#f5c842);color:#0f2d5e;font-size:12px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;">＋ Add User</button>
-      </div>
-      ${users.length===0?'<div style="font-size:13px;color:#64748b;text-align:center;padding:24px;">No users yet. Tap ＋ Add User above.</div>':''}
-      ${users.map(u=>`
-        <div style="padding:12px 0;border-bottom:1px solid #dde4f0;">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:38px;height:38px;border-radius:10px;background:#0f2d5e15;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;">${u.role==='admin'?'🛡️':u.role==='coordinator'?'📋':'🤝'}</div>
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:14px;font-weight:700;color:#0d1b2e;">${u.name||'—'}</div>
-              <div style="font-size:11px;color:#64748b;">${u.role||'—'}${u.barangay?' · '+u.barangay:''}</div>
-              <div style="font-size:11px;color:#64748b;">${u.email||''}</div>
-            </div>
-            <span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;background:${u.active!==false?'#05996922':'#64748b22'};color:${u.active!==false?'#059669':'#64748b'};">${u.active!==false?'active':'inactive'}</span>
-          </div>
-          <div style="display:flex;gap:6px;margin-top:8px;">
-            <button onclick="openEditUser('${u.id}')" style="flex:1;padding:7px;border-radius:8px;border:1px solid #dde4f0;background:#fff;color:#0f2d5e;font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✏️ Edit</button>
-            <button onclick="toggleUserActive('${u.id}',${u.active!==false})" style="flex:1;padding:7px;border-radius:8px;border:1px solid ${u.active!==false?'#e6a817':'#059669'};background:#fff;color:${u.active!==false?'#e6a817':'#059669'};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">${u.active!==false?'⏸ Deactivate':'▶ Activate'}</button>
-            <button onclick="deleteUser('${u.id}','${(u.name||u.email||'').replace(/'/g,'')}')" style="flex:1;padding:7px;border-radius:8px;border:1px solid #dc2626;background:#fff;color:#dc2626;font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">🗑 Delete</button>
-          </div>
-        </div>`).join('')}
-    </div>
-    <div class="card" style="background:#0f2d5e06;border:1px solid #dde4f0;">
-      <div style="font-size:12px;color:#64748b;line-height:1.7;">
-        <strong style="color:#0f2d5e;">How to add a coordinator:</strong><br>
-        1. Firebase Console → Authentication → Add user<br>
-        2. Copy the UID shown<br>
-        3. Tap ＋ Add User above → paste UID → set role to coordinator → assign barangay<br>
-        4. Share the app URL + email + password via Viber
-      </div>
-    </div>`;
-
-  // ── REPORTS
-  const reportsHtml = `
-    <div class="card">
-      <div style="font-size:13px;font-weight:700;color:#0d1b2e;margin-bottom:4px;">Export Reports</div>
-      <div style="font-size:12px;color:#64748b;margin-bottom:14px;">Downloads as CSV — opens in Excel</div>
-      ${S.success?'<div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:10px;padding:10px 14px;color:#059669;font-size:13px;margin-bottom:12px;">'+S.success+'</div>':''}
-      ${S.error?'<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:10px 14px;color:#dc2626;font-size:13px;margin-bottom:12px;">'+S.error+'</div>':''}
-      ${[
-        {icon:'📋',label:'Full Voter Registry',desc:'All records — CSV',action:'exportVotersCSV()'},
-        {icon:'📊',label:'Support Analysis',desc:'Count by support level',action:'exportSupportCSV()'},
-        {icon:'🏘️',label:'Barangay Summary',desc:'Voter count per barangay',action:'exportBarangayCSV()'},
-      ].map(r=>`
-        <button onclick="${r.action}" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 0;background:transparent;border:none;border-bottom:1px solid #dde4f0;cursor:pointer;text-align:left;">
-          <span style="font-size:22px;flex-shrink:0;">${r.icon}</span>
-          <div style="flex:1;">
-            <div style="font-size:13px;font-weight:600;color:#0d1b2e;">${r.label}</div>
-            <div style="font-size:11px;color:#64748b;">${r.desc}</div>
-          </div>
-          <span style="font-size:18px;color:#e6a817;">⬇</span>
-        </button>`).join('')}
-    </div>
-    <div class="card" style="background:#fef3c710;border:1px solid #fbbf2440;">
-      <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:8px;">⚠️ Data Operations</div>
-      <button onclick="resetAllSupport()" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 0;background:transparent;border:none;cursor:pointer;text-align:left;">
-        <span style="font-size:22px;flex-shrink:0;">🔄</span>
-        <div style="flex:1;">
-          <div style="font-size:13px;font-weight:600;color:#dc2626;">Reset All Support to Undecided</div>
-          <div style="font-size:11px;color:#64748b;">Sets every voter back to Undecided. Cannot be undone.</div>
-        </div>
-      </button>
-    </div>`;
-
-  // ── SETTINGS
-  const settingsHtml = `
-    <div class="card">
-      <div style="font-size:13px;font-weight:700;color:#0d1b2e;margin-bottom:12px;">System Configuration</div>
-      ${[
-        {k:'vol',  l:'Allow Volunteer Edits',  d:'Let volunteers edit voter records'},
-        {k:'email',l:'Email Notifications',    d:'Send updates via email'},
-        {k:'sms',  l:'SMS Alerts',             d:'Send alerts via SMS'},
-        {k:'tfa',  l:'Two-Factor Auth',        d:'Require 2FA for admin logins'},
-        {k:'enc',  l:'Data Encryption',        d:'AES-256 (always on)'},
-      ].map(s=>`
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid #dde4f0;">
-          <div>
-            <div style="font-size:13px;color:#0d1b2e;font-weight:500;">${s.l}</div>
-            <div style="font-size:11px;color:#64748b;">${s.d}</div>
-          </div>
-          <div onclick="S.toggles['${s.k}']=!S.toggles['${s.k}'];render()"
-            style="width:46px;height:26px;border-radius:13px;background:${S.toggles[s.k]?'#0f2d5e':'#dde4f0'};position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;margin-left:12px;">
-            <div style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${S.toggles[s.k]?23:3}px;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,0.2);"></div>
-          </div>
-        </div>`).join('')}
-    </div>`;
-
-  const bodies = {overview:overviewHtml, users:usersHtml, reports:reportsHtml, settings:settingsHtml};
-
+  const sec=S.adminSec;
   return `
   <div class="tab-content">
     <div class="pill-tabs">
       ${['overview','users','reports','settings'].map(s=>`
-        <button class="pill-tab" onclick="S.adminSec='${s}';render()"
-          style="background:${sec===s?'#0f2d5e':'#fff'};color:${sec===s?'#fff':'#64748b'};box-shadow:${sec===s?'none':'0 1px 4px rgba(0,0,0,0.08)'};">
-          ${s.charAt(0).toUpperCase()+s.slice(1)}
+        <button class="pill-tab" onclick="S.adminSec='${s}';render()" style="background:${sec===s?C.navy:'#fff'};color:${sec===s?'#fff':C.muted};box-shadow:${sec===s?'none':'0 1px 4px rgba(0,0,0,0.08)'};">${s.charAt(0).toUpperCase()+s.slice(1)}</button>`).join('')}
+    </div>
+
+    ${sec==='overview'?`
+    <div class="stat-grid">
+      ${sc('📁','Total Voters in DB',(S.stats.total||0).toLocaleString(),C.navy)}
+      ${sc('👤','System Users',S.systemUsers.length.toString(),C.teal)}
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:10px;">System Status</div>
+      ${[{l:'Database',v:'✅ Firebase Firestore'},{l:'Auth',v:'✅ Email / Password'},
+         {l:'Offline Mode',v:'✅ Active'},{l:'Encryption',v:'✅ TLS + AES-256'},
+         {l:'Logged in as',v:S.user?.email||'—'},{l:'Role',v:S.profile?.role||'—'},
+      ].map(x=>`
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid ${C.border};">
+          <span style="font-size:13px;color:${C.text};">${x.l}</span>
+          <span style="font-size:13px;font-weight:700;color:${C.navy};">${x.v}</span>
+        </div>`).join('')}
+    </div>`:''}
+
+    ${sec==='users'?`
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;color:${C.text};">System Users</div>
+        <button onclick="openAddUser()" style="padding:6px 13px;border-radius:20px;border:none;background:${C.gold}22;color:${C.navy};font-size:11px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;">＋ Add User</button>
+      </div>
+      ${S.systemUsers.length===0?`<div style="font-size:13px;color:${C.muted};text-align:center;padding:20px;">No users yet.</div>`:''}
+      ${S.systemUsers.map(u=>`
+        <div style="padding:10px 0;border-bottom:1px solid ${C.border};">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:${C.navy}15;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">${u.role==='admin'?'🛡️':u.role==='coordinator'?'📋':'🤝'}</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:600;color:${C.text};">${u.name||u.email}</div>
+              <div style="font-size:11px;color:${C.muted};">${u.role}${u.barangay?' · '+u.barangay:''}</div>
+              <div style="font-size:11px;color:${C.muted};margin-top:1px;">${u.email||''}</div>
+            </div>
+            <span class="badge" style="background:${u.active!==false?C.success:C.muted}22;color:${u.active!==false?C.success:C.muted};">${u.active!==false?'active':'inactive'}</span>
+          </div>
+          <div style="display:flex;gap:7px;margin-top:9px;">
+            <button onclick="openEditUser('${u.id}')" style="flex:1;padding:7px;border-radius:8px;border:1px solid ${C.border};background:transparent;color:${C.navy};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">✏️ Edit</button>
+            <button onclick="toggleUserActive('${u.id}',${u.active!==false})" style="flex:1;padding:7px;border-radius:8px;border:1px solid ${u.active!==false?C.gold:C.success};background:transparent;color:${u.active!==false?C.gold:C.success};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">${u.active!==false?'⏸ Deactivate':'▶ Activate'}</button>
+            <button onclick="deleteUser('${u.id}','${(u.name||u.email).replace(/'/g,'')}') " style="flex:1;padding:7px;border-radius:8px;border:1px solid ${C.danger};background:transparent;color:${C.danger};font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;">🗑 Delete</button>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="card" style="background:${C.navy}06;border:1px solid ${C.border};">
+      <div style="font-size:12px;color:${C.muted};line-height:1.7;">
+        <strong style="color:${C.navy};">Coordinator access:</strong> Each coordinator can only view, add, and edit voters in their assigned barangay. Deactivating a user blocks their login immediately.
+      </div>
+    </div>`:''}
+
+    ${sec==='reports'?`
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:4px;">Export Reports</div>
+      <div style="font-size:12px;color:${C.muted};margin-bottom:14px;">Downloads as CSV — opens in Excel</div>
+      ${S.success?`<div class="ok-box">${S.success}</div>`:''}
+      ${S.error?`<div class="err-box">${S.error}</div>`:''}
+      ${[{icon:'📋',label:'Full Voter Registry',desc:'All fields including birthday & notes',action:'exportVotersCSV()'},
+         {icon:'📊',label:'Support Analysis',desc:'Count by support level',action:'exportSupportCSV()'},
+         {icon:'🏘️',label:'Barangay Summary',desc:'Voter count per barangay',action:'exportBarangayCSV()'},
+      ].map((r,i,a)=>`
+        <button onclick="${r.action}" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 0;background:transparent;border:none;border-bottom:1px solid ${C.border};cursor:pointer;text-align:left;">
+          <span style="font-size:22px;flex-shrink:0;">${r.icon}</span>
+          <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:${C.text};">${r.label}</div><div style="font-size:11px;color:${C.muted};">${r.desc}</div></div>
+          <span style="font-size:18px;color:${C.gold};">⬇</span>
         </button>`).join('')}
     </div>
-    ${bodies[sec]||''}
+    <div class="card" style="background:#fef3c710;border:1px solid #fbbf2440;">
+      <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:4px;">⚠️ Data Operations</div>
+      <div style="font-size:12px;color:${C.muted};margin-bottom:14px;">Bulk actions on voter records — use with caution</div>
+      <button onclick="resetAllSupport()" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 0;background:transparent;border:none;border-bottom:1px solid ${C.border};cursor:pointer;text-align:left;">
+        <span style="font-size:22px;flex-shrink:0;">🔄</span>
+        <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#dc2626;">Reset All Support to Undecided</div><div style="font-size:11px;color:${C.muted};">Sets every voter's support level back to Undecided. Cannot be undone.</div></div>
+      </button>
+    </div>`:''}
+
+    ${sec==='settings'?`
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:${C.text};margin-bottom:12px;">System Configuration</div>
+      ${[{k:'vol',l:'Allow Volunteer Edits',d:'Let volunteers edit voter records'},
+         {k:'email',l:'Email Notifications',d:'Send updates via email'},
+         {k:'sms',l:'SMS Alerts',d:'Send alerts via SMS'},
+         {k:'tfa',l:'Two-Factor Authentication',d:'Require 2FA for admin logins'},
+         {k:'enc',l:'Data Encryption',d:'AES-256 (always on)'},
+      ].map(s=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid ${C.border};">
+          <div><div style="font-size:13px;color:${C.text};font-weight:500;">${s.l}</div><div style="font-size:11px;color:${C.muted};">${s.d}</div></div>
+          <div class="toggle" style="background:${S.toggles[s.k]?C.navy:C.border};margin-left:12px;" onclick="S.toggles['${s.k}']=!S.toggles['${s.k}'];render()">
+            <div class="toggle-dot" style="left:${S.toggles[s.k]?23:3}px;"></div>
+          </div>
+        </div>`).join('')}
+    </div>`:''}
   </div>`;
 }
 
@@ -1189,7 +1075,6 @@ function renderVoterModal(){
   <div class="modal-overlay" onclick="if(event.target===this){S.modal=null;render();}">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <button onclick="S.modal=null;S.error='';S.success='';render()" style="position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;border:none;background:#eef2fb;color:#64748b;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
 
       <!-- HEADER -->
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
@@ -1306,7 +1191,6 @@ function renderAddVoterModal(){
   <div class="modal-overlay" onclick="if(event.target===this){S.modal=null;S.error='';render();}">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <button onclick="S.modal=null;S.error='';S.success='';render()" style="position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;border:none;background:#eef2fb;color:#64748b;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
       <div style="font-size:18px;font-weight:800;color:${C.text};margin-bottom:6px;">➕ Add Voter Record</div>
       <div style="font-size:12px;color:${C.muted};margin-bottom:18px;">Birthday auto-calculates age and age group.</div>
       ${S.error?`<div class="err-box">${S.error}</div>`:''}
@@ -1345,7 +1229,6 @@ function renderEditUserModal(){
   <div class="modal-overlay" onclick="if(event.target===this){S.modal=null;S.error='';render();}">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <button onclick="S.modal=null;S.error='';S.success='';render()" style="position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;border:none;background:#eef2fb;color:#64748b;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
       <div style="font-size:18px;font-weight:800;color:${C.text};margin-bottom:18px;">✏️ Edit User</div>
       ${S.error?`<div class="err-box">${S.error}</div>`:''}
       ${S.success?`<div class="ok-box">${S.success}</div>`:''}
@@ -1382,7 +1265,6 @@ function renderAddUserModal(){
   <div class="modal-overlay" onclick="if(event.target===this){S.modal=null;S.error='';render();}">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <button onclick="S.modal=null;S.error='';S.success='';render()" style="position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;border:none;background:#eef2fb;color:#64748b;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
       <div style="font-size:18px;font-weight:800;color:${C.text};margin-bottom:6px;">➕ Add System User</div>
       <div style="font-size:12px;color:${C.muted};line-height:1.5;margin-bottom:18px;">First create in Firebase Console → Authentication → Add User. Then paste the UID here.</div>
       ${S.error?`<div class="err-box">${S.error}</div>`:''}
@@ -1416,44 +1298,19 @@ function resubVoters(){
 }
 
 let searchTimer=null;
-
 function doSearch(val){
-  S.search = val.toLowerCase().trim();
+  S.search=val;
   clearTimeout(searchTimer);
-
-  searchTimer = setTimeout(async ()=>{
-    if(S.search.length >= 2){
-
-      try{
-        // FULL TEXT LIKE SEARCH (multi-field)
-        const snap = await db.collection('voters').limit(500).get();
-
-        const all = snap.docs.map(d=>({id:d.id,...d.data()}));
-
-        const filtered = all.filter(v=>{
-          const full = `${v.firstName||''} ${v.lastName||''} ${v.middleName||''}`.toLowerCase();
-          return full.includes(S.search) ||
-                 (v.barangay||'').toLowerCase().includes(S.search) ||
-                 (v.occupation||'').toLowerCase().includes(S.search) ||
-                 (v.notes||'').toLowerCase().includes(S.search) ||
-                 (v.precinct||'').toLowerCase().includes(S.search);
-        });
-
-        filtered.sort((a,b)=>(a.lastName||'').localeCompare(b.lastName||''));
-        S.searchResults = filtered;
-
-      }catch(e){
-        console.warn('Search error:', e);
-        S.searchResults = null;
-      }
-
+  searchTimer=setTimeout(()=>{
+    // Only re-render the voter list area, not the whole page
+    const listEl=document.getElementById('voter-list');
+    if(listEl){
+      const voters=filteredVoters();
+      listEl.innerHTML=renderVoterList(voters);
     } else {
-      S.searchResults = null;
+      render();
     }
-
-    render();
-
-  },300);
+  },200);
 }
 
 function openVoterDetail(id){
@@ -1510,16 +1367,6 @@ async function saveNewUser(){
 }
 
 /* ════════════════════════════════════════════════════
-   ONLINE / OFFLINE STATE
-   ════════════════════════════════════════════════════ */
-let isOnline = navigator.onLine;
-
-function getOfflineBar(){
-  if(isOnline) return '';
-  return '<div style="background:#f59e0b;color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:700;position:fixed;top:56px;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:99;">📵 Offline Mode — Changes will sync when you reconnect</div>';
-}
-
-/* ════════════════════════════════════════════════════
    MAIN RENDER
    ════════════════════════════════════════════════════ */
 function renderMain(){
@@ -1529,8 +1376,7 @@ function renderMain(){
   else if(S.tab==='barangays') body=renderBarangays();
   else if(S.tab==='feed')      body=renderFeed();
   else if(S.tab==='admin')     body=renderAdmin();
-  const offlineBar = typeof getOfflineBar === 'function' ? getOfflineBar() : '';
-  return `${renderHeader()}${offlineBar}<div class="content">${body}</div>${renderNav()}${renderModal()}`;
+  return `${renderHeader()}${getOfflineBar()}<div class="content" style="padding-top:${isOnline?'0':'28px'}">${body}</div>${renderNav()}${renderModal()}`;
 }
 
 /* ════════════════════════════════════════════════════
@@ -1691,6 +1537,8 @@ async function syncPendingWrites(){
 /* ════════════════════════════════════════════════════
    OFFLINE DETECTION + SYNC
    ════════════════════════════════════════════════════ */
+let isOnline = navigator.onLine;
+
 window.addEventListener('online', async ()=>{
   isOnline = true;
   console.log('Back online — syncing pending writes...');
@@ -1772,7 +1620,15 @@ function cacheLoadedVotersForOffline(voters){
   }
 }
 
-
+/* ════════════════════════════════════════════════════
+   OFFLINE STATUS INDICATOR
+   ════════════════════════════════════════════════════ */
+function getOfflineBar(){
+  if(isOnline) return '';
+  return `<div style="background:#f59e0b;color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:700;position:fixed;top:56px;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:99;">
+    📵 Offline Mode — Changes will sync when you reconnect
+  </div>`;
+}
 
 /* ════════════════════════════════════════════════════
    SERVICE WORKER REGISTRATION
