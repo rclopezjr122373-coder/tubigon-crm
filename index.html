@@ -208,7 +208,18 @@ async function doLogout(){
 /* ════════════════════════════════════════════════════
    FIRESTORE — VOTERS
    ════════════════════════════════════════════════════ */
-function buildQuery(){
+function doSearch(query){
+  S.search = query;
+  S.searchResults = null;
+  render();
+}
+
+function resubVoters(){
+  S.unsubs.forEach(u=>u());
+  S.unsubs = [];
+  subscribeVoters();
+}
+  function buildQuery(){
   const brgy = coordBrgy();
 
   // If coordinator has no barangay assigned, return empty query
@@ -231,6 +242,12 @@ function buildQuery(){
   if(S.filters.support) q = q.where('support','==',S.filters.support);
   if(S.filters.voterCategory) q = q.where('voterCategory','==',S.filters.voterCategory);
   if(S.filters.barangay) q = q.where('barangay','==',S.filters.barangay);
+
+    // Always order by lastName for consistency
+  q = q.orderBy('lastName').limit(2000);
+
+  return q;
+}
 
   // Always order by lastName for consistency
   q = q.orderBy('lastName').limit(2000);
